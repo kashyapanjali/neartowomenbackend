@@ -2,6 +2,7 @@ const express = require("express");
 const Product = require("../models/productSchema");
 const router = express.Router();
 
+//model router
 router.post("/addproduct", async (req, res) => {
 	try {
 		const product = new Product(req.body);
