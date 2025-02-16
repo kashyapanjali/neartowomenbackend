@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
 	try {
 		await mongoose.connect(process.env.MONGO_DB_ATLAS_URL, {
-			useNewUrlParser: true,
-			useUnifiedTopology: true,
+			// useNewUrlParser: true,
+			// useUnifiedTopology: true,
 			dbName: "quick-shop",
 		});
 		console.log("MongoDB connected successfully");
