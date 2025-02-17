@@ -1,14 +1,39 @@
 const express = require("express");
 const { Product } = require("../models/productSchema");
+const { Category } = require("../models/categorySchema");
 const router = express.Router();
 
 //model router
 //add the product
 router.post("/addproduct", async (req, res) => {
 	try {
-		const product = new Product(req.body);
-		await product.save();
-		res.status(201).json({ message: "Product added successfully!", product });
+		// Check if category exists
+		const category = await Category.findById(req.body.category);
+		if (!category) return res.status(400).send("Invalid Category");
+		// Create product
+		const product = new Product({
+			name: req.body.name,
+			description: req.body.description,
+			richDescription: req.body.richDescription,
+			image: req.body.image,
+			brand: req.body.brand,
+			price: req.body.price,
+			category: req.body.category,
+			countInStock: req.body.countInStock,
+			rating: req.body.rating,
+			numReviews: req.body.numReviews,
+			isFeatures: req.body.isFeatures, // Ensure consistency with schema
+		});
+		// Save product
+		const savedProduct = await product.save();
+		if (!savedProduct) {
+			return res.status(500).send("The product cannot be created");
+		}
+		// Send response
+		res.status(201).json({
+			message: "Product added successfully!",
+			product: savedProduct,
+		});
 	} catch (error) {
 		res.status(400).json({ error: error.message });
 	}
