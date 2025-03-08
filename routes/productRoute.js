@@ -2,7 +2,7 @@ const express = require('express');
 const { Product } = require('../models/productSchema');
 const { Category } = require('../models/categorySchema');
 const router = express.Router();
-// const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
 //model router
 //add the product
@@ -43,8 +43,13 @@ router.post('/addproduct', async (req, res) => {
 // Route to get all products
 router.get('/getproducts', async (req, res) => {
   try {
-    const products = await Product.find().populate('category'); //.select("name -_id"); select by specific item like name,color,price etc
-    res.status(200).json(products);
+    //localhost:3000/api/v1/products?categories=2342342,234234
+    let filter = {};
+    if (req.query.categories) {
+      filter = { category: req.query.categories.split(',') };
+    }
+    const productList = await Product.find(filter).populate('category'); //.select("name -_id"); select by specific item like name,color,price etc
+    res.status(200).json(productList);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -78,6 +83,9 @@ router.delete('/deleteproduct/:id', async (req, res) => {
 
 // Route to update a product by ID
 router.put('/updateproduct/:id', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    res.status(400).send('Invalid Product ID');
+  }
   try {
     const category = await Category.findById(req.body.category);
     if (!category) return res.status(400).send('Invalid Category');
@@ -118,6 +126,16 @@ router.get('/get/count', async (req, res) => {
   res.send({
     countProduct: countProduct,
   });
+});
+
+//check features
+router.get('/get/Featured/:count', async (req, res) => {
+  const count = req.params.count ? req.params.count : 0;
+  const product = await Product.find({ isFeatures: true }).limit(+count);
+  if (!product) {
+    res.status(500).json({ success: false });
+  }
+  res.send(product);
 });
 
 module.exports = router;
