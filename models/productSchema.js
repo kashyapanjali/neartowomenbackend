@@ -24,9 +24,10 @@ productSchema.virtual('id').get(function () {
   return this._id.toHexString();
 });
 
-productSchema.vurtual('toJSON', {
+productSchema.set('toJSON', {
   virtuals: true,
 });
+
 const Product = mongoose.model('Product', productSchema);
 
 module.exports = { Product };

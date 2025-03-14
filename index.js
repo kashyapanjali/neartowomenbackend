@@ -1,18 +1,20 @@
-const express = require("express");
-const dotenv = require("dotenv");
-const bodyParser = require("body-parser");
-const morgan = require("morgan");
-const connectDB = require("./config/db");
-const cors = require("cors");
-const productRoute = require("./routes/productRoute");
-const categoryRoute = require("./routes/categoryRoute");
+const express = require('express');
+const dotenv = require('dotenv');
+const bodyParser = require('body-parser');
+const morgan = require('morgan');
+const connectDB = require('./config/db');
+const cors = require('cors');
+const productRoute = require('./routes/productRoute');
+const categoryRoute = require('./routes/categoryRoute');
+const userRoute = require('./routes/userRoute');
 
 dotenv.config();
 const app = express();
 
 app.use(bodyParser.json());
+
 app.use(cors()); // Enables CORS
-app.use(morgan("tiny"));
+app.use(morgan('tiny'));
 
 const url = process.env.API_URL; // Default fallback if API_URL is undefined
 
@@ -20,6 +22,7 @@ connectDB();
 
 app.use(`${url}/products`, productRoute);
 app.use(`${url}/category`, categoryRoute);
+app.use(`${url}/users`, userRoute);
 
 // app.get(`${url}/name`, (req, res) => {
 // 	res.send("Hello API");
@@ -32,5 +35,5 @@ app.use(`${url}/category`, categoryRoute);
 
 const PORT = 3000;
 app.listen(PORT, () => {
-	console.log(`App is running on http://localhost:${PORT}`);
+  console.log(`App is running on http://localhost:${PORT}`);
 });
