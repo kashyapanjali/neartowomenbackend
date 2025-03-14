@@ -7,14 +7,19 @@ const cors = require('cors');
 const productRoute = require('./routes/productRoute');
 const categoryRoute = require('./routes/categoryRoute');
 const userRoute = require('./routes/userRoute');
+const authJwt = require('./helpers/jwt');
+const errorHandler = require('./helpers/error-handler');
 
 dotenv.config();
 const app = express();
-
-app.use(bodyParser.json());
-
 app.use(cors()); // Enables CORS
+app.options('*', cors());
+
+//middleware
+app.use(bodyParser.json());
 app.use(morgan('tiny'));
+app.use(authJwt());
+app.use(errorHandler);
 
 const url = process.env.API_URL; // Default fallback if API_URL is undefined
 

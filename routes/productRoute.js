@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 
 //model router
 //add the product
-router.post('/addproduct', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     // Check if category exists
     const category = await Category.findById(req.body.category);
@@ -41,7 +41,7 @@ router.post('/addproduct', async (req, res) => {
 });
 
 // Route to get all products
-router.get('/getproducts', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     //localhost:3000/api/v1/products?categories=2342342,234234
     let filter = {};
@@ -56,7 +56,7 @@ router.get('/getproducts', async (req, res) => {
 });
 
 //find the product by id
-router.get('/getproduct/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate('category'); //get product with category
     if (!product) {
@@ -69,7 +69,7 @@ router.get('/getproduct/:id', async (req, res) => {
 });
 
 //delete by id
-router.delete('/deleteproduct/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const deleteProduct = await Product.findByIdAndDelete(req.params.id);
     if (!deleteProduct) {
@@ -82,7 +82,7 @@ router.delete('/deleteproduct/:id', async (req, res) => {
 });
 
 // Route to update a product by ID
-router.put('/updateproduct/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     res.status(400).send('Invalid Product ID');
   }
