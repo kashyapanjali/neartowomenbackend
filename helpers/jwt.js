@@ -11,17 +11,16 @@ function authJwt() {
     path: [
       { url: /\/api\/products(.*)/, methods: ['GET', 'OPTIONS'] },
       { url: /\/api\/category(.*)/, methods: ['GET', 'OPTIONS'] },
-      { url: /\/api\/users\/register/, methods: ['POST'] }, // Allow for user register
-      { url: /\/api\/users\/login/, methods: ['POST'] }, // Allow for user login
+      `${api}/users/login`, // Allow for user register
+      `${api}/users/register`, // Allow for user login
     ],
   });
 }
 
-async function isRevoked(req, payload, done) {
-  if (!payload.isAdmin) {
-    done(null, true);
+async function isRevoked(req, token) {
+  if (!token.payload.isAdmin) {
+    return true; // Reject the request if not an admin
   }
-  done();
+  return false;
 }
-
 module.exports = authJwt;
