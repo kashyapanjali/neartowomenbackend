@@ -14,8 +14,7 @@ router.get('/', async (req, res) => {
   res.send(orderList);
 });
 
-// post method of order
-
+// post method of order with linked of orderitem of product
 router.post('/', async (req, res) => {
   //first we define which orderItem of product is create
   const orderItemsIds = Promise.all(
