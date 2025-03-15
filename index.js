@@ -10,6 +10,8 @@ const userRoute = require('./routes/userRoute');
 const authJwt = require('./helpers/jwt');
 const errorHandler = require('./helpers/error-handler');
 
+const orderRoute = require('./routes/orderRoute');
+
 dotenv.config();
 const app = express();
 app.use(cors()); // Enables CORS
@@ -28,6 +30,7 @@ connectDB();
 app.use(`${url}/products`, productRoute);
 app.use(`${url}/category`, categoryRoute);
 app.use(`${url}/users`, userRoute);
+app.use(`${url}/orders`, orderRoute);
 
 // app.get(`${url}/name`, (req, res) => {
 // 	res.send("Hello API");
