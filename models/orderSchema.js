@@ -4,20 +4,15 @@ const orderSchema = mongoose.Schema({
   orderItems: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
+      ref: 'OrderItem',
       required: true,
     },
   ],
 
-  shippingAddress1: {
+  shippingAddress: {
     //full address
     type: String,
     required: true,
-  },
-
-  shippingAddress2: {
-    //main
-    type: String,
   },
 
   city: {
@@ -26,11 +21,6 @@ const orderSchema = mongoose.Schema({
   },
 
   zip: {
-    type: String,
-    required: true,
-  },
-
-  country: {
     type: String,
     required: true,
   },

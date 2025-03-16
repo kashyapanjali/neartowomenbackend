@@ -10,14 +10,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+
   passwordHash: {
     type: String,
     required: true,
   },
+
   phone: {
     type: String,
     required: true,
   },
+
   isAdmin: {
     type: Boolean,
     required: false,
@@ -28,21 +31,12 @@ const userSchema = new mongoose.Schema({
     default: '',
   },
 
-  apartment: {
-    type: String,
-    default: '',
-  },
   zip: {
     type: String,
     default: '',
   },
 
   city: {
-    type: String,
-    default: '',
-  },
-
-  country: {
     type: String,
     default: '',
   },
