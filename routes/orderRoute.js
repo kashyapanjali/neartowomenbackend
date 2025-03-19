@@ -52,6 +52,20 @@ router.post('/', async (req, res) => {
   const orderItemsIdsResolved = await orderItemsIds;
   //check the item id
 
+  const totalPrices = await Promise.all(
+    orderItemsIdsResolved.map(async (orderItemId) => {
+      const orderItem = await OrderItem.findById(orderItemId).populate(
+        'product',
+        'price'
+      );
+      const totalPrice = orderItem.product.price * orderItem.quantity;
+      return totalPrice;
+    })
+  );
+  const totalPrice = totalPrices.reduce((a, b) => a + b, 0);
+
+  console.log(totalPrice);
+
   let order = new Order({
     orderItems: orderItemsIdsResolved,
     shippingAddress: req.body.shippingAddress,
@@ -59,7 +73,7 @@ router.post('/', async (req, res) => {
     zip: req.body.zip,
     phone: req.body.phone,
     status: req.body.status,
-    totalPrice: req.body.totalPrice,
+    totalPrice: totalPrice,
     user: req.body.user,
   });
 
@@ -95,7 +109,7 @@ router.put('/:id', async (req, res) => {
 //delete the order by id
 router.delete('/:id', async (req, res) => {
   try {
-    // Step 1: Find the order by ID
+    // Find the order by ID
     const order = await Order.findById(req.params.id);
     if (!order) {
       return res
@@ -103,23 +117,63 @@ router.delete('/:id', async (req, res) => {
         .json({ success: false, message: 'Order not found' });
     }
 
-    // Step 2: Delete all related order items from the database
+    // Delete ONLY the order items associated with this order
     await Promise.all(
       order.orderItems.map(async (orderItemId) => {
         await OrderItem.findByIdAndDelete(orderItemId);
       })
     );
 
-    // Step 3: Delete the order itself
+    // Delete the order itself
     await Order.findByIdAndDelete(req.params.id);
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'Order and its items deleted successfully',
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// total sales
+router.get('/get/totalsales', async (req, res) => {
+  const totalSales = await Order.aggregate([
+    { $group: { _id: null, totalSales: { $sum: 'totalPrice' } } },
+  ]);
+
+  if (!totalSales) {
+    return res.satus(400).send('The order sales canno be generated');
+  }
+  res.send({ totalSales: totalSales.pop().totalSales });
+});
+
+//count how many number of orders of users
+router.get('/get/count', async (req, res) => {
+  const orderCount = await Order.countDocuments();
+  if (!orderCount) {
+    res.status(500).json({ success: false });
+  }
+  res.send({
+    orderCount: orderCount,
+  });
+});
+
+//to find the user order
+router.get('/get/userorders/:userid', async (req, res) => {
+  const userOrderList = await Order.find({ user: req.params.userid })
+    .populate({
+      path: 'orderItems',
+      populate: {
+        path: 'products',
+        populate: 'category',
+      },
+    })
+    .sort({ 'dateOrdered': -1 });
+  if (!userOrderList) {
+    res.status(500).json({ success: false });
+  }
+  res.send(userOrderList);
 });
 
 module.exports = router;
