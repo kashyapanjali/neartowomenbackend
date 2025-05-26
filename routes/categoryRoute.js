@@ -2,132 +2,91 @@ const express = require('express');
 const { Category } = require('../models/categorySchema');
 const router = express.Router();
 
-// Predefined women-specific categories
-const WOMEN_CATEGORIES = [
-  {
-    name: 'Menstrual Care',
-    color: '#FF69B4',
-    icon: '🩸',
-    image: '/public/uploads/menstrual-care.jpg'
-  },
-  {
-    name: 'Women\'s Health Supplements',
-    color: '#FFB6C1',
-    icon: '💊',
-    image: '/public/uploads/health-supplements.jpg'
-  },
-  {
-    name: 'Makeup & Cosmetics',
-    color: '#FFC0CB',
-    icon: '💄',
-    image: '/public/uploads/makeup.jpg'
-  },
-  {
-    name: 'Skincare',
-    color: '#FFE4E1',
-    icon: '✨',
-    image: '/public/uploads/skincare.jpg'
-  },
-  {
-    name: 'Hair Care',
-    color: '#DDA0DD',
-    icon: '💇‍♀️',
-    image: '/public/uploads/haircare.jpg'
-  },
-  {
-    name: 'Personal Hygiene',
-    color: '#E6E6FA',
-    icon: '🧴',
-    image: '/public/uploads/hygiene.jpg'
-  }
-];
-
-// Initialize categories if they don't exist
-router.post('/initialize', async (req, res) => {
-  try {
-    const existingCategories = await Category.find();
-    if (existingCategories.length === 0) {
-      const categories = await Category.insertMany(WOMEN_CATEGORIES);
-      res.status(201).json(categories);
-    } else {
-      res.status(200).json({ message: 'Categories already initialized' });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get all categories
+//router for all get category
 router.get('/', async (req, res) => {
-  try {
-    const categories = await Category.find();
-    res.status(200).json(categories);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const categoryList = await Category.find();
+  if (!categoryList) {
+    return res.status(500).json({ succes: false });
   }
+  res.status(200).send(categoryList);
 });
 
-// Get category by ID
+//router for get category by id
 router.get('/:id', async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) {
-      return res.status(404).json({ message: 'Category not found' });
+      return res
+        .status(404)
+        .json({ message: 'category with the given id is not found' });
     }
-    res.status(200).json(category);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(200).json({ category });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
-// Create new category
-router.post('/', async (req, res) => {
-  try {
-    const category = new Category({
-      name: req.body.name,
-      color: req.body.color,
-      icon: req.body.icon,
-      image: req.body.image
-    });
-    const savedCategory = await category.save();
-    res.status(201).json(savedCategory);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update category
+//router for update the category
 router.put('/:id', async (req, res) => {
   try {
+    if (!req.body.name) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Category name is required' });
+    }
     const category = await Category.findByIdAndUpdate(
-      req.params.id,
+      req.params.id, // Get ID from URL
       {
         name: req.body.name,
         color: req.body.color,
         icon: req.body.icon,
-        image: req.body.image
+        image: req.body.image,
       },
       { new: true }
     );
     if (!category) {
-      return res.status(404).json({ message: 'Category not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Category not found!' });
     }
-    res.status(200).json(category);
+    // Successfully updated
+    res.status(200).json({ success: true, category });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Delete category
+//router for add product by category
+router.post('/', async (req, res) => {
+  let category = new Category({
+    name: req.body.name,
+    color: req.body.color,
+    icon: req.body.icon,
+    image: req.body.image,
+  });
+  category = await category.save();
+
+  if (!category) {
+    return res.status(404).send('the category cannot be created!');
+  }
+  res.send(category);
+});
+
+//delete category
 router.delete('/:id', async (req, res) => {
   try {
-    const category = await Category.findByIdAndDelete(req.params.id);
-    if (!category) {
-      return res.status(404).json({ message: 'Category not found' });
+    const deleteCategory = await Category.findByIdAndDelete(req.params.id);
+    if (deleteCategory) {
+      return res
+        .status(200)
+        .json({ success: true, message: 'the category is deleted' });
+    } else {
+      return res
+        .status(404)
+        .json({ success: false, message: 'category not found' });
     }
-    res.status(200).json({ message: 'Category deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 

@@ -36,6 +36,7 @@ const uploadOptions = multer({ storage: storage });
 //add the product
 router.post('/', uploadOptions.single('image'), async (req, res) => {
   try {
+    // Check if category exists
     const category = await Category.findById(req.body.category);
     if (!category) return res.status(400).send('Invalid Category');
 
@@ -44,24 +45,26 @@ router.post('/', uploadOptions.single('image'), async (req, res) => {
 
     const fileName = req.file.filename;
     const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
-    
+    // Create product
     const product = new Product({
       name: req.body.name,
       description: req.body.description,
-      image: `${basePath}${fileName}`,
+      richDescription: req.body.richDescription,
+      image: `${basePath}${fileName}`, //"http://localhost:3000//public/uploads/image.jpg"
+      brand: req.body.brand,
       price: req.body.price,
       category: req.body.category,
       countInStock: req.body.countInStock,
-      productType: req.body.productType,
-      isAvailable: req.body.isAvailable,
-      discount: req.body.discount
+      rating: req.body.rating,
+      numReviews: req.body.numReviews,
+      isFeatures: req.body.isFeatures, // Ensure consistency with schema
     });
-
+    // Save product
     const savedProduct = await product.save();
     if (!savedProduct) {
       return res.status(500).send('The product cannot be created');
     }
-    
+    // Send response
     res.status(201).json({
       message: 'Product added successfully!',
       product: savedProduct,
@@ -115,7 +118,7 @@ router.delete('/:id', async (req, res) => {
 // Route to update a product by ID
 router.put('/:id', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).send('Invalid Product ID');
+    res.status(400).send('Invalid Product ID');
   }
   try {
     const category = await Category.findById(req.body.category);
@@ -126,20 +129,22 @@ router.put('/:id', async (req, res) => {
       {
         name: req.body.name,
         description: req.body.description,
+        richDescription: req.body.richDescription,
         image: req.body.image,
+        brand: req.body.brand,
         price: req.body.price,
         category: req.body.category,
         countInStock: req.body.countInStock,
-        productType: req.body.productType,
-        isAvailable: req.body.isAvailable,
-        discount: req.body.discount
+        rating: req.body.rating,
+        numReviews: req.body.numReviews,
+        isFeatures: req.body.isFeatures, // Ensure consistency with schema
       },
       { new: true }
     );
     if (!updatedProduct) {
       return res.status(500).send({ message: 'Product cannot be updated' });
     }
-    res.status(200).send(updatedProduct);
+    res.status(200).send(updatedProduct); // Send the updated category as the response
   } catch (err) {
     res.status(404).json({ message: err.message });
   }
@@ -198,98 +203,5 @@ router.put(
     res.send(product);
   }
 );
-
-// Quick commerce specific routes
-router.get('/quick-delivery', async (req, res) => {
-  try {
-    const products = await Product.find({
-      isAvailable: true,
-      isExpressDelivery: true
-    }).populate('category');
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get('/subscription-available', async (req, res) => {
-  try {
-    const products = await Product.find({
-      isSubscriptionAvailable: true
-    }).populate('category');
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get('/on-sale', async (req, res) => {
-  try {
-    const products = await Product.find({
-      discount: { $gt: 0 },
-      discountEndDate: { $gt: new Date() }
-    }).populate('category');
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add product review
-router.post('/:id/reviews', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    const review = {
-      user: req.body.userId,
-      rating: req.body.rating,
-      comment: req.body.comment
-    };
-
-    product.reviews.push(review);
-    
-    // Update product rating
-    const totalRating = product.reviews.reduce((acc, item) => acc + item.rating, 0);
-    product.rating = totalRating / product.reviews.length;
-    product.numReviews = product.reviews.length;
-
-    await product.save();
-    res.status(201).json(product);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get products by type
-router.get('/type/:type', async (req, res) => {
-  try {
-    const products = await Product.find({
-      productType: req.params.type
-    }).populate('category');
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Search products
-router.get('/search/:query', async (req, res) => {
-  try {
-    const searchQuery = req.params.query;
-    const products = await Product.find({
-      $or: [
-        { name: { $regex: searchQuery, $options: 'i' } },
-        { description: { $regex: searchQuery, $options: 'i' } },
-        { brand: { $regex: searchQuery, $options: 'i' } }
-      ]
-    }).populate('category');
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 module.exports = router;
