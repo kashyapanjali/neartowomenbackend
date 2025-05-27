@@ -77,7 +77,7 @@ router.post('/', uploadOptions.single('image'), async (req, res) => {
 // Route to get all products
 router.get('/', async (req, res) => {
   try {
-    //localhost:3000/api/v1/products?categories=2342342,234234
+    //localhost:3000/api/products?categories=2342342,234234
     let filter = {};
     if (req.query.categories) {
       filter = { category: req.query.categories.split(',') };

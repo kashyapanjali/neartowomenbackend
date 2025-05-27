@@ -11,6 +11,7 @@ const authJwt = require('./helpers/jwt');
 const errorHandler = require('./helpers/error-handler');
 
 const orderRoute = require('./routes/orderRoute');
+const cartRoute = require('./routes/cartRoute');
 
 dotenv.config();
 const app = express();
@@ -32,6 +33,7 @@ app.use(`${url}/products`, productRoute);
 app.use(`${url}/category`, categoryRoute);
 app.use(`${url}/users`, userRoute);
 app.use(`${url}/orders`, orderRoute);
+app.use(`${url}/cart`, cartRoute);
 
 // app.get(`${url}/name`, (req, res) => {
 // 	res.send("Hello API");
