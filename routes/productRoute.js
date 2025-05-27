@@ -4,6 +4,7 @@ const { Category } = require('../models/categorySchema');
 const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
+const checkRole = require('../helpers/checkRole');
 
 //validate the uploaded file from the users-------->
 const FILE_TYPE_MAP = {
@@ -34,7 +35,7 @@ const uploadOptions = multer({ storage: storage });
 
 //model router
 //add the product
-router.post('/', uploadOptions.single('image'), async (req, res) => {
+router.post('/', checkRole(['admin']), uploadOptions.single('image'), async (req, res) => {
   try {
     // Check if category exists
     const category = await Category.findById(req.body.category);
@@ -103,7 +104,7 @@ router.get('/:id', async (req, res) => {
 });
 
 //delete by id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', checkRole(['admin']), async (req, res) => {
   try {
     const deleteProduct = await Product.findByIdAndDelete(req.params.id);
     if (!deleteProduct) {
@@ -116,7 +117,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Route to update a product by ID
-router.put('/:id', async (req, res) => {
+router.put('/:id', checkRole(['admin']), async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     res.status(400).send('Invalid Product ID');
   }
@@ -151,7 +152,7 @@ router.put('/:id', async (req, res) => {
 });
 
 //for the Admin see how many products
-router.get('/get/count', async (req, res) => {
+router.get('/get/count', checkRole(['admin']), async (req, res) => {
   const countProduct = await Product.countDocuments();
   if (!countProduct) {
     res.status(500).json({ success: false });

@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
+    unique: true
   },
 
   passwordHash: {
@@ -21,25 +22,47 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
 
-  isAdmin: {
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+
+  // Single address field for basic user info
+  address: {
+    street: {
+      type: String,
+      default: '',
+    },
+    zip: {
+      type: String,
+      default: '',
+    },
+    city: {
+      type: String,
+      default: '',
+    }
+  },
+
+  isActive: {
     type: Boolean,
-    required: false,
+    default: true
   },
 
-  street: {
-    type: String,
-    default: '',
-  },
+  // Multiple addresses for shipping
+  shippingAddresses: [{
+    street: String,
+    city: String,
+    zip: String,
+    isDefault: Boolean
+  }],
 
-  zip: {
+  paymentMethods: [{
     type: String,
-    default: '',
-  },
-
-  city: {
-    type: String,
-    default: '',
-  },
+    cardNumber: String,
+    expiryDate: String,
+    isDefault: Boolean
+  }]
 });
 
 userSchema.virtual('id').get(function () {

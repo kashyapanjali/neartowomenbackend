@@ -3,144 +3,165 @@ const { User } = require('../models/userSchema');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const checkRole = require('../helpers/checkRole');
 
-//for Admin
-router.post('/', async (req, res) => {
-  if (!req.body.password) {
-    return res.status(400).json({ error: 'Password is required' });
-  }
-
-  let user = new User({
-    name: req.body.name,
-    email: req.body.email,
-    passwordHash: bcrypt.hashSync(req.body.password, 10), //10 is secret key
-    phone: req.body.phone,
-    isAdmin: req.body.isAdmin,
-    street: req.body.street,
-    zip: req.body.zip,
-    city: req.body.city,
-  });
-
-  user = await user.save();
-  if (!user) {
-    return res.status(400).send('user not register');
-  }
-
-  res.send(user);
-});
-
-//register the user
+// Register new user
 router.post('/register', async (req, res) => {
-  if (!req.body.password) {
-    return res.status(400).json({ error: 'Password is required' });
+  try {
+    if (!req.body.password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: req.body.email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const user = new User({
+      name: req.body.name,
+      email: req.body.email,
+      passwordHash: bcrypt.hashSync(req.body.password, 10),
+      phone: req.body.phone,
+      isAdmin: req.body.isAdmin || false,
+      street: req.body.street,
+      zip: req.body.zip,
+      city: req.body.city,
+    });
+
+    const savedUser = await user.save();
+    if (!savedUser) {
+      return res.status(400).json({ error: 'User could not be registered' });
+    }
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: savedUser._id,
+        name: savedUser.name,
+        email: savedUser.email,
+        isAdmin: savedUser.isAdmin
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  let user = new User({
-    name: req.body.name,
-    email: req.body.email,
-    passwordHash: bcrypt.hashSync(req.body.password, 10), //10 is secret key
-    phone: req.body.phone,
-    isAdmin: req.body.isAdmin,
-    street: req.body.street,
-    zip: req.body.zip,
-    city: req.body.city,
-  });
-
-  user = await user.save();
-  if (!user) {
-    return res.status(400).send('user not register');
-  }
-
-  res.send(user);
 });
 
-//find list of users
-router.get('/', async (req, res) => {
-  const userList = await User.find().select('-passwordHash');
-
-  if (!userList) {
-    return res.status(500).json({ success: false });
-  }
-  res.status(200).send(userList);
-});
-
-//find one user by id
-router.get('/:id', async (req, res) => {
-  const userOne = await User.findById(req.params.id).select('-passwordHash');
-
-  if (!userOne) {
-    return res.status(500).json({ success: false });
-  }
-  res.status(200).send(userOne);
-});
-
-//login the user
+// Login user
 router.post('/login', async (req, res) => {
-  const user = await User.findOne({
-    email: req.body.email,
-  });
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
 
-  const secret = process.env.secret;
-  if (!user) {
-    return res.status(400).send('The user not found');
+    if (user && bcrypt.compareSync(req.body.password, user.passwordHash)) {
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          isAdmin: user.isAdmin,
+        },
+        process.env.secret,
+        { expiresIn: '1d' }
+      );
+
+      res.status(200).json({
+        message: 'Login successful',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          isAdmin: user.isAdmin
+        },
+        token: token
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid password' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  if (user && bcrypt.compareSync(req.body.password, user.passwordHash)) {
-    const token = jwt.sign(
+// Get all users (admin only)
+router.get('/', checkRole(['admin']), async (req, res) => {
+  try {
+    const userList = await User.find().select('-passwordHash');
+    res.status(200).json(userList);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get user by id (user can view their own profile, admin can view any profile)
+router.get('/:id', async (req, res) => {
+  try {
+    // Check if user is trying to access their own profile or is admin
+    if (req.user.userId !== req.params.id && !req.user.isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to access this profile' });
+    }
+
+    const user = await User.findById(req.params.id).select('-passwordHash');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update user (user can update their own profile, admin can update any profile)
+router.put('/:id', async (req, res) => {
+  try {
+    // Check if user is trying to update their own profile or is admin
+    if (req.user.userId !== req.params.id && !req.user.isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to update this profile' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
       {
-        userId: user.id,
-        isAdmin: user.isAdmin,
+        name: req.body.name,
+        email: req.body.email,
+        phone: req.body.phone,
+        street: req.body.street,
+        zip: req.body.zip,
+        city: req.body.city,
       },
-      secret,
-      { expiresIn: '1d' }
-    );
-
-    res.status(200).send({ user: user.email, token: token });
-  } else {
-    res.status(400).send('password is wrong');
-  }
-});
-
-//delete the user through id
-router.delete('/:id', async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.params.id);
+      { new: true }
+    ).select('-passwordHash');
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
-
-    return res
-      .status(200)
-      .json({ success: true, message: 'The user has been deleted' });
+    res.status(200).json(user);
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
-//get count of users
-router.get('/get/count', async (req, res) => {
-  const userCount = await User.countDocuments();
-  if (!userCount) {
-    res.status(500).json({ success: false });
-  }
-  res.send({
-    userCount: userCount,
-  });
-});
-
-//delete by id
-router.delete('/:id', async (req, res) => {
+// Delete user (admin only)
+router.delete('/:id', checkRole(['admin']), async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
-    res.status(200).json({ message: 'User deleted' });
+    res.status(200).json({ message: 'User deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get user count (admin only)
+router.get('/get/count', checkRole(['admin']), async (req, res) => {
+  try {
+    const userCount = await User.countDocuments();
+    res.status(200).json({ userCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -12,6 +12,9 @@ const errorHandler = require('./helpers/error-handler');
 
 const orderRoute = require('./routes/orderRoute');
 const cartRoute = require('./routes/cartRoute');
+const purchaseRoute = require('./routes/purchaseRoute');
+const rateLimit = require('express-rate-limit');
+
 
 dotenv.config();
 const app = express();
@@ -29,11 +32,19 @@ const url = process.env.API_URL; // Default fallback if API_URL is undefined
 
 connectDB();
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+app.use(limiter);
+
 app.use(`${url}/products`, productRoute);
 app.use(`${url}/category`, categoryRoute);
 app.use(`${url}/users`, userRoute);
 app.use(`${url}/orders`, orderRoute);
 app.use(`${url}/cart`, cartRoute);
+app.use(`${url}/purchase`, purchaseRoute);
 
 // app.get(`${url}/name`, (req, res) => {
 // 	res.send("Hello API");
