@@ -8,160 +8,205 @@ const checkRole = require('../helpers/checkRole');
 // Register new user
 router.post('/register', async (req, res) => {
   try {
-    if (!req.body.password) {
-      return res.status(400).json({ error: 'Password is required' });
-    }
+    const { name, email, password, phone, street, zip, city } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: req.body.email });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ message: 'User already exists' });
     }
 
     const user = new User({
-      name: req.body.name,
-      email: req.body.email,
-      passwordHash: bcrypt.hashSync(req.body.password, 10),
-      phone: req.body.phone,
-      isAdmin: req.body.isAdmin || false,
-      street: req.body.street,
-      zip: req.body.zip,
-      city: req.body.city,
+      name,
+      email,
+      passwordHash: bcrypt.hashSync(password, 10),
+      phone,
+      street,
+      zip,
+      city,
+      role: 'user'
     });
 
     const savedUser = await user.save();
     if (!savedUser) {
-      return res.status(400).json({ error: 'User could not be registered' });
+      return res.status(400).json({ message: 'User could not be created' });
     }
 
     res.status(201).json({
       message: 'User registered successfully',
       user: {
-        id: savedUser._id,
+        id: savedUser.id,
         name: savedUser.name,
         email: savedUser.email,
-        isAdmin: savedUser.isAdmin
+        role: savedUser.role
       }
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
 // Login user
 router.post('/login', async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ error: 'User not found' });
+      return res.status(400).json({ message: 'User not found' });
     }
 
-    if (user && bcrypt.compareSync(req.body.password, user.passwordHash)) {
-      const token = jwt.sign(
-        {
-          userId: user.id,
-          isAdmin: user.isAdmin,
-        },
-        process.env.secret,
-        { expiresIn: '1d' }
-      );
-
-      res.status(200).json({
-        message: 'Login successful',
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          isAdmin: user.isAdmin
-        },
-        token: token
-      });
-    } else {
-      res.status(400).json({ error: 'Invalid password' });
+    const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: 'Invalid password' });
     }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        role: user.role
+      },
+      process.env.secret,
+      { expiresIn: '1d' }
+    );
+
+    res.status(200).json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Get all users (admin only)
+// Get user profile - MUST BE BEFORE /:id ROUTES
+router.get('/profile', async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Find user by ID from token
+    const user = await User.findById(req.user.userId).select('-passwordHash');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({
+      message: 'Profile retrieved successfully',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        street: user.street,
+        zip: user.zip,
+        city: user.city,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Profile error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update user profile - MUST BE BEFORE /:id ROUTES
+router.put('/profile', async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const { name, phone, street, zip, city } = req.body;
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user fields
+    user.name = name || user.name;
+    user.phone = phone || user.phone;
+    user.street = street || user.street;
+    user.zip = zip || user.zip;
+    user.city = city || user.city;
+
+    const updatedUser = await user.save();
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        street: updatedUser.street,
+        zip: updatedUser.zip,
+        city: updatedUser.city,
+        role: updatedUser.role
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get user count
+router.get('/count', async (req, res) => {
+  try {
+    const userCount = await User.countDocuments();
+    res.status(200).json({ userCount });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Admin routes - MUST BE AFTER /profile ROUTES
 router.get('/', checkRole(['admin']), async (req, res) => {
   try {
     const userList = await User.find().select('-passwordHash');
     res.status(200).json(userList);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Get user by id (user can view their own profile, admin can view any profile)
-router.get('/:id', async (req, res) => {
+router.get('/:id', checkRole(['admin']), async (req, res) => {
   try {
-    // Check if user is trying to access their own profile or is admin
-    if (req.user.userId !== req.params.id && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Not authorized to access this profile' });
-    }
-
     const user = await User.findById(req.params.id).select('-passwordHash');
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
     res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Update user (user can update their own profile, admin can update any profile)
-router.put('/:id', async (req, res) => {
-  try {
-    // Check if user is trying to update their own profile or is admin
-    if (req.user.userId !== req.params.id && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Not authorized to update this profile' });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      {
-        name: req.body.name,
-        email: req.body.email,
-        phone: req.body.phone,
-        street: req.body.street,
-        zip: req.body.zip,
-        city: req.body.city,
-      },
-      { new: true }
-    ).select('-passwordHash');
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Delete user (admin only)
 router.delete('/:id', checkRole(['admin']), async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
     res.status(200).json({ message: 'User deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get user count (admin only)
-router.get('/get/count', checkRole(['admin']), async (req, res) => {
-  try {
-    const userCount = await User.countDocuments();
-    res.status(200).json({ userCount });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
