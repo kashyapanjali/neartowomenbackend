@@ -10,6 +10,11 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password, phone, street, zip, city } = req.body;
 
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -20,10 +25,10 @@ router.post('/register', async (req, res) => {
       name,
       email,
       passwordHash: bcrypt.hashSync(password, 10),
-      phone,
-      street,
-      zip,
-      city,
+      phone: phone || '',
+      street: street || '',
+      zip: zip || '',
+      city: city || '',
       role: 'user'
     });
 
