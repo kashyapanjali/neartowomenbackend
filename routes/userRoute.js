@@ -52,6 +52,44 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Register admin user
+router.post('/register-admin', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const user = new User({
+      name,
+      email,
+      passwordHash: bcrypt.hashSync(password, 10),
+      role: 'admin'
+    });
+
+    const savedUser = await user.save();
+    if (!savedUser) {
+      return res.status(400).json({ message: 'Admin could not be created' });
+    }
+
+    res.status(201).json({
+      message: 'Admin registered successfully',
+      user: {
+        id: savedUser.id,
+        name: savedUser.name,
+        email: savedUser.email,
+        role: savedUser.role
+      }
+    });
+  } catch (error) {
+    console.error('Admin registration error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Login user
 router.post('/login', async (req, res) => {
   try {
