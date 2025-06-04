@@ -19,7 +19,8 @@ function authJwt() {
       { url: /\/api\/products(.*)/, methods: ['GET', 'OPTIONS'] },
       { url: /\/api\/category(.*)/, methods: ['GET', 'OPTIONS'] },
       `${api}/users/login`,
-      `${api}/users/register`
+      `${api}/users/register`,
+      `${api}/users/register-admin`
     ],
   });
 }
