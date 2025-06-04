@@ -35,40 +35,37 @@ const uploadOptions = multer({ storage: storage });
 
 //model router
 //add the product
-router.post('/', checkRole(['admin']), uploadOptions.single('image'), async (req, res) => {
+router.post('/', checkRole(['admin']), async (req, res) => {
   try {
     // Check if category exists
     const category = await Category.findById(req.body.category);
     if (!category) return res.status(400).send('Invalid Category');
 
-    const file = req.file;
-    if (!file) return res.status(400).send('No image in the request');
-
-    const fileName = req.file.filename;
-    const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
     // Create product
     const product = new Product({
       name: req.body.name,
       description: req.body.description,
       richDescription: req.body.richDescription,
-      image: `${basePath}${fileName}`, //"http://localhost:3000//public/uploads/image.jpg"
+      image: req.body.image,
       brand: req.body.brand,
       price: req.body.price,
       category: req.body.category,
       countInStock: req.body.countInStock,
       rating: req.body.rating,
       numReviews: req.body.numReviews,
-      isFeatures: req.body.isFeatures, // Ensure consistency with schema
+      isFeatures: req.body.isFeatures
     });
+
     // Save product
     const savedProduct = await product.save();
     if (!savedProduct) {
       return res.status(500).send('The product cannot be created');
     }
+
     // Send response
     res.status(201).json({
       message: 'Product added successfully!',
-      product: savedProduct,
+      product: savedProduct
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
