@@ -57,11 +57,21 @@ const userSchema = new mongoose.Schema({
     isDefault: Boolean
   }],
 
-  paymentMethods: [{
-    type: String,
-    cardNumber: String,
-    expiryDate: String,
-    isDefault: Boolean
+  // UPI payment methods
+  upiMethods: [{
+    upiId: {
+      type: String,
+      required: true
+    },
+    app: {
+      type: String,
+      enum: ['paytm', 'gpay', 'phonepe'],
+      required: true
+    },
+    isDefault: {
+      type: Boolean,
+      default: false
+    }
   }]
 });
 

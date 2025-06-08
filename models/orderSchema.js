@@ -34,21 +34,46 @@ const orderSchema = mongoose.Schema({
     type: String,
     required: true,
     default: 'pending',
+    enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']
   },
 
   totalPrice: {
     type: Number,
+    required: true
   },
 
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    required: true
   },
 
   dateOrder: {
     type: Date,
     default: Date.now,
   },
+
+  // UPI Payment-related fields
+  paymentDetails: {
+    transactionId: String,
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded']
+    },
+    paymentDate: Date,
+    amount: Number,
+    currency: {
+      type: String,
+      default: 'INR'
+    },
+    upiDetails: {
+      app: {
+        type: String,
+        enum: ['paytm', 'gpay', 'phonepe']
+      },
+      upiId: String
+    }
+  }
 });
 
 orderSchema.virtual('id').get(function () {

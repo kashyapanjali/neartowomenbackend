@@ -14,6 +14,7 @@ const orderRoute = require('./routes/orderRoute');
 const cartRoute = require('./routes/cartRoute');
 const purchaseRoute = require('./routes/purchaseRoute');
 const rateLimit = require('express-rate-limit');
+const upiPaymentRoute = require('./routes/upiPaymentRoute');
 
 
 dotenv.config();
@@ -45,6 +46,7 @@ app.use(`${url}/users`, userRoute);
 app.use(`${url}/orders`, orderRoute);
 app.use(`${url}/cart`, cartRoute);
 app.use(`${url}/purchase`, purchaseRoute);
+app.use(`${url}/upi-payments`, upiPaymentRoute);
 
 // app.get(`${url}/name`, (req, res) => {
 // 	res.send("Hello API");
