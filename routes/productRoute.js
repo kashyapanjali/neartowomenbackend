@@ -87,6 +87,78 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Search products - This must come BEFORE the /:id route
+router.get('/search', async (req, res) => {
+  try {
+    const { query, minPrice, maxPrice, category } = req.query;
+    
+    // Build the search filter
+    const filter = {};
+
+    // Text search if query exists
+    if (query) {
+      try {
+        const searchRegex = new RegExp(query, 'i');
+        filter.$or = [
+          { name: searchRegex },
+          { description: searchRegex },
+          { brand: searchRegex }
+        ];
+      } catch (regexError) {
+        console.error('Regex error:', regexError);
+        return res.status(400).json({ message: 'Invalid search query format' });
+      }
+    }
+
+    // Price range filter
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) {
+        const minPriceNum = Number(minPrice);
+        if (isNaN(minPriceNum)) {
+          return res.status(400).json({ message: 'Invalid minimum price' });
+        }
+        filter.price.$gte = minPriceNum;
+      }
+      if (maxPrice) {
+        const maxPriceNum = Number(maxPrice);
+        if (isNaN(maxPriceNum)) {
+          return res.status(400).json({ message: 'Invalid maximum price' });
+        }
+        filter.price.$lte = maxPriceNum;
+      }
+    }
+
+    // Category filter
+    if (category) {
+      try {
+        filter.category = category;
+      } catch (error) {
+        console.error('Category filter error:', error);
+        return res.status(400).json({ message: 'Invalid category ID' });
+      }
+    }
+
+    console.log('Search filter:', JSON.stringify(filter, null, 2));
+
+    const products = await Product.find(filter).populate('category');
+    console.log('Found products:', products.length);
+
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: 'No products found matching your search criteria' });
+    }
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ 
+      message: 'Error searching products', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 //find the product by id
 router.get('/:id', async (req, res) => {
   try {
