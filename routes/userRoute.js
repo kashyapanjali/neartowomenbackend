@@ -135,7 +135,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Get user profile - MUST BE BEFORE /:id ROUTES
-router.get('/profile', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user.userId) {
@@ -168,7 +168,7 @@ router.get('/profile', async (req, res) => {
 });
 
 // Update user profile - MUST BE BEFORE /:id ROUTES
-router.put('/profile', async (req, res) => {
+router.put('/', async (req, res) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user.userId) {

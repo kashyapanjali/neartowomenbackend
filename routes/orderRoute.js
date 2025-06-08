@@ -3,160 +3,122 @@ const { OrderItem } = require('../models/order-itemSchema');
 const { Order } = require('../models/orderSchema');
 const express = require('express');
 const router = express.Router();
+const checkRole = require('../helpers/checkRole');
 
 // Start to create the api of orders
 
-//get all the order
-router.get('/', async (req, res) => {
-  const orderList = await Order.find()
-    .populate('user', 'name')
-    .sort({ 'dateOrder': -1 });
+// Admin routes
+// Get all orders (admin only)
+router.get('/', checkRole(['admin']), async (req, res) => {
+  try {
+    const orderList = await Order.find()
+      .populate('user', 'name email')
+      .populate({
+        path: 'orderItems',
+        populate: {
+          path: 'products',
+          populate: 'category'
+        }
+      })
+      .sort({ 'dateOrder': -1 });
 
-  if (!orderList) {
-    res.status(500).json({ success: false });
+    res.status(200).json(orderList);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  res.send(orderList);
 });
 
-//get the order by id
-router.get('/:id', async (req, res) => {
-  const order = await Order.findById(req.params.id)
-    .populate('user', 'name') // only find user name
-    .populate({
-      path: 'orderItems',
-      populate: {
-        path: 'products',
-        populate: 'category',
-      },
-    }); // details of orderItem and products with category
-  if (!order) {
-    res.status(500).json({ success: false });
-  }
-  res.send(order);
-});
-
-// post method of order with linked of orderitem of product
-router.post('/', async (req, res) => {
-  //first we define which orderItem of product is create
-  const orderItemsIds = Promise.all(
-    req.body.orderItems.map(async (orderItem) => {
-      let newOrderItem = new OrderItem({
-        quantity: orderItem.quantity,
-        products: orderItem.products,
+// Get order by ID (admin only)
+router.get('/:id', checkRole(['admin']), async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('user', 'name email')
+      .populate({
+        path: 'orderItems',
+        populate: {
+          path: 'products',
+          populate: 'category'
+        }
       });
-      newOrderItem = await newOrderItem.save();
-      return newOrderItem._id;
-    })
-  );
 
-  const orderItemsIdsResolved = await orderItemsIds;
-  //check the item id
-
-  const totalPrices = await Promise.all(
-    orderItemsIdsResolved.map(async (orderItemId) => {
-      const orderItem = await OrderItem.findById(orderItemId).populate(
-        'product',
-        'price'
-      );
-      const totalPrice = orderItem.product.price * orderItem.quantity;
-      return totalPrice;
-    })
-  );
-  const totalPrice = totalPrices.reduce((a, b) => a + b, 0);
-
-  console.log(totalPrice);
-
-  let order = new Order({
-    orderItems: orderItemsIdsResolved,
-    shippingAddress: req.body.shippingAddress,
-    city: req.body.city,
-    zip: req.body.zip,
-    phone: req.body.phone,
-    status: req.body.status,
-    totalPrice: totalPrice,
-    user: req.body.user,
-  });
-
-  order = await order.save();
-  if (!order) {
-    return res.status(400).send({ message: 'the order can be created' });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  res.send(order);
 });
 
-// Only update the status of products i.e shipped, deliver etc
-router.put('/:id', async (req, res) => {
+// Update order status (admin only)
+router.put('/:id', checkRole(['admin']), async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(
-      req.params.id, // Get ID from URL
-      {
-        status: req.body.status,
-      },
+      req.params.id,
+      { status: req.body.status },
       { new: true }
     );
+    
     if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: 'Order not found!' });
+      return res.status(404).json({ message: 'Order not found' });
     }
-    // Successfully updated
-    res.status(200).json({ success: true, order });
+    
+    res.status(200).json(order);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 
-//delete the order by id
-router.delete('/:id', async (req, res) => {
+// Delete order (admin only)
+router.delete('/:id', checkRole(['admin']), async (req, res) => {
   try {
-    // Find the order by ID
     const order = await Order.findById(req.params.id);
     if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: 'Order not found' });
+      return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Delete ONLY the order items associated with this order
+    // Delete order items
     await Promise.all(
       order.orderItems.map(async (orderItemId) => {
         await OrderItem.findByIdAndDelete(orderItemId);
       })
     );
 
-    // Delete the order itself
+    // Delete order
     await Order.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
-      success: true,
-      message: 'Order and its items deleted successfully',
+      message: 'Order and its items deleted successfully'
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-// total sales
-router.get('/get/totalsales', async (req, res) => {
-  const totalSales = await Order.aggregate([
-    { $group: { _id: null, totalSales: { $sum: 'totalPrice' } } },
-  ]);
+// Get total sales (admin only)
+router.get('/get/totalsales', checkRole(['admin']), async (req, res) => {
+  try {
+    const totalSales = await Order.aggregate([
+      { $group: { _id: null, totalSales: { $sum: 'totalPrice' } } }
+    ]);
 
-  if (!totalSales) {
-    return res.satus(400).send('The order sales canno be generated');
+    if (!totalSales.length) {
+      return res.status(200).json({ totalSales: 0 });
+    }
+    res.status(200).json({ totalSales: totalSales[0].totalSales });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  res.send({ totalSales: totalSales.pop().totalSales });
 });
 
-//count how many number of orders of users
-router.get('/get/count', async (req, res) => {
-  const orderCount = await Order.countDocuments();
-  if (!orderCount) {
-    res.status(500).json({ success: false });
+// Get order count (admin only)
+router.get('/get/count', checkRole(['admin']), async (req, res) => {
+  try {
+    const orderCount = await Order.countDocuments();
+    res.status(200).json({ orderCount });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  res.send({
-    orderCount: orderCount,
-  });
 });
 
 //to find the user order

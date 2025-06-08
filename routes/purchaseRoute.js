@@ -2,83 +2,69 @@
 const express = require('express');
 const router = express.Router();
 const { Order } = require('../models/orderSchema');
-const { Product } = require('../models/productSchema');
+const { OrderItem } = require('../models/order-itemSchema');
 const { Cart } = require('../models/cartSchema');
+const { Product } = require('../models/productSchema');
 const checkRole = require('../helpers/checkRole');
 
-// Method 1: Purchase from Cart
-router.post('/cart-purchase', checkRole(['user']), async (req, res) => {
+// Purchase from cart
+router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
   try {
-    const { userId, shippingAddress, city, zip, phone } = req.body;
-    
-    // Get user's cart
-    const cart = await Cart.findOne({ user: userId }).populate('cartItems.product');
-    if (!cart || cart.cartItems.length === 0) {
-      return res.status(400).json({ message: 'Cart is empty' });
+    // Get cart
+    const cart = await Cart.findOne({ user: req.params.userId })
+      .populate('items.product');
+
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
     }
 
-    // Validate stock and calculate total
-    let totalAmount = 0;
-    for (const item of cart.cartItems) {
-      const product = await Product.findById(item.product._id);
-      if (!product) {
-        return res.status(404).json({ message: `Product ${item.product._id} not found` });
-      }
-      if (product.countInStock < item.quantity) {
-        return res.status(400).json({ message: `Not enough stock for ${product.name}` });
-      }
-      totalAmount += product.price * item.quantity;
-    }
+    // Create order items
+    const orderItems = await Promise.all(
+      cart.items.map(async (item) => {
+        const orderItem = new OrderItem({
+          quantity: item.quantity,
+          products: item.product._id
+        });
+        return await orderItem.save();
+      })
+    );
+
+    // Calculate total price
+    const totalPrice = orderItems.reduce((total, item) => {
+      return total + (item.quantity * item.products.price);
+    }, 0);
 
     // Create order
     const order = new Order({
-      user: userId,
-      orderItems: cart.cartItems.map(item => ({
-        product: item.product._id,
-        quantity: item.quantity
-      })),
-      shippingAddress,
-      city,
-      zip,
-      phone,
-      totalPrice: totalAmount,
-      status: 'pending'
+      orderItems: orderItems.map(item => item._id),
+      shippingAddress: req.body.shippingAddress,
+      city: req.body.city,
+      zip: req.body.zip,
+      phone: req.body.phone,
+      status: 'pending',
+      totalPrice,
+      user: req.params.userId
     });
 
-    // Save order
-    const savedOrder = await order.save();
+    await order.save();
 
-    // Update product stock
-    for (const item of cart.cartItems) {
-      await Product.findByIdAndUpdate(item.product._id, {
-        $inc: { countInStock: -item.quantity }
-      });
-    }
-
-    // Clear cart after successful purchase
-    await Cart.findOneAndDelete({ user: userId });
+    // Clear cart
+    cart.items = [];
+    await cart.save();
 
     res.status(201).json({
-      message: 'Order placed successfully from cart',
-      order: savedOrder
+      message: 'Order created successfully',
+      order
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Method 2: Direct Purchase (Buy Now)
-router.post('/buy-now', checkRole(['user']), async (req, res) => {
+// Direct purchase (without cart)
+router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
   try {
-    const { 
-      userId, 
-      productId, 
-      quantity,
-      shippingAddress, 
-      city, 
-      zip, 
-      phone 
-    } = req.body;
+    const { productId, quantity, shippingAddress, city, zip, phone } = req.body;
 
     // Validate product
     const product = await Product.findById(productId);
@@ -86,40 +72,33 @@ router.post('/buy-now', checkRole(['user']), async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Validate stock
-    if (product.countInStock < quantity) {
-      return res.status(400).json({ message: 'Not enough stock available' });
-    }
+    // Create order item
+    const orderItem = new OrderItem({
+      quantity,
+      products: productId
+    });
+    await orderItem.save();
 
-    // Calculate total
-    const totalAmount = product.price * quantity;
+    // Calculate total price
+    const totalPrice = quantity * product.price;
 
     // Create order
     const order = new Order({
-      user: userId,
-      orderItems: [{
-        product: productId,
-        quantity: quantity
-      }],
+      orderItems: [orderItem._id],
       shippingAddress,
       city,
       zip,
       phone,
-      totalPrice: totalAmount,
-      status: 'pending'
+      status: 'pending',
+      totalPrice,
+      user: req.params.userId
     });
 
-    // Update product stock
-    await Product.findByIdAndUpdate(productId, {
-      $inc: { countInStock: -quantity }
-    });
-
-    // Save order
-    const savedOrder = await order.save();
+    await order.save();
 
     res.status(201).json({
-      message: 'Order placed successfully',
-      order: savedOrder
+      message: 'Order created successfully',
+      order
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -127,58 +106,40 @@ router.post('/buy-now', checkRole(['user']), async (req, res) => {
 });
 
 // Get user's orders
-router.get('/my-orders/:userId', checkRole(['user']), async (req, res) => {
+router.get('/user/:userId', checkRole(['user']), async (req, res) => {
   try {
     const orders = await Order.find({ user: req.params.userId })
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'product',
+          path: 'products',
           populate: 'category'
         }
       })
       .sort({ dateOrder: -1 });
-    
+
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get all orders (Admin only)
-router.get('/all-orders', checkRole(['admin']), async (req, res) => {
+// Get order details
+router.get('/:orderId', checkRole(['user']), async (req, res) => {
   try {
-    const orders = await Order.find()
-      .populate('user', 'name email')
+    const order = await Order.findById(req.params.orderId)
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'product',
+          path: 'products',
           populate: 'category'
         }
-      })
-      .sort({ dateOrder: -1 });
-    
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+      });
 
-// Update order status (Admin only)
-router.put('/order-status/:orderId', checkRole(['admin']), async (req, res) => {
-  try {
-    const { status } = req.body;
-    const order = await Order.findByIdAndUpdate(
-      req.params.orderId,
-      { status },
-      { new: true }
-    );
-    
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
-    
+
     res.status(200).json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
