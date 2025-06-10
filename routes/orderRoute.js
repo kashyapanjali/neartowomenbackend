@@ -1,11 +1,8 @@
-const { populate } = require('dotenv');
-const { OrderItem } = require('../models/order-itemSchema');
-const { Order } = require('../models/orderSchema');
 const express = require('express');
 const router = express.Router();
+const { Order } = require('../models/orderSchema');
+const { OrderItem } = require('../models/order-itemSchema');
 const checkRole = require('../helpers/checkRole');
-
-// Start to create the api of orders
 
 // Admin routes
 // Get all orders (admin only)
@@ -121,21 +118,23 @@ router.get('/get/count', checkRole(['admin']), async (req, res) => {
   }
 });
 
-//to find the user order
-router.get('/get/userorders/:userid', async (req, res) => {
-  const userOrderList = await Order.find({ user: req.params.userid })
-    .populate({
-      path: 'orderItems',
-      populate: {
-        path: 'products',
-        populate: 'category',
-      },
-    })
-    .sort({ 'dateOrdered': -1 });
-  if (!userOrderList) {
-    res.status(500).json({ success: false });
+// Get user's orders
+router.get('/user/:userId', checkRole(['user']), async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.params.userId })
+      .populate({
+        path: 'orderItems',
+        populate: {
+          path: 'products',
+          populate: 'category'
+        }
+      })
+      .sort({ dateOrder: -1 });
+
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  res.send(userOrderList);
 });
 
 module.exports = router;
