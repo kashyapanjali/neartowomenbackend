@@ -6,13 +6,14 @@ const { OrderItem } = require('../models/order-itemSchema');
 const { Cart } = require('../models/cartSchema');
 const { Product } = require('../models/productSchema');
 const checkRole = require('../helpers/checkRole');
+const mongoose = require('mongoose');
 
 // Purchase from cart
 router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
   try {
     // Get cart
     const cart = await Cart.findOne({ user: req.params.userId })
-      .populate('items.product');
+      .populate('cartItems.product');
 
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
@@ -20,7 +21,7 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
 
     // Create order items
     const orderItems = await Promise.all(
-      cart.items.map(async (item) => {
+      cart.cartItems.map(async (item) => {
         const orderItem = new OrderItem({
           quantity: item.quantity,
           products: item.product._id
@@ -29,9 +30,9 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
       })
     );
 
-    // Calculate total price
-    const totalPrice = orderItems.reduce((total, item) => {
-      return total + (item.quantity * item.products.price);
+    // Calculate total price using the populated cart items
+    const totalPrice = cart.cartItems.reduce((total, item) => {
+      return total + (item.quantity * item.product.price);
     }, 0);
 
     // Create order
@@ -49,7 +50,8 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
     await order.save();
 
     // Clear cart
-    cart.items = [];
+    cart.cartItems = [];
+    cart.totalAmount = 0;
     await cart.save();
 
     res.status(201).json({
@@ -57,6 +59,7 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
       order
     });
   } catch (error) {
+    console.error('Purchase error:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -66,10 +69,29 @@ router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
   try {
     const { productId, quantity, shippingAddress, city, zip, phone } = req.body;
 
-    // Validate product
+    // Validate required fields
+    if (!productId || !quantity || !shippingAddress || !city || !zip || !phone) {
+      return res.status(400).json({
+        message: 'Missing required fields'});
+    }
+    // Validate MongoDB ObjectId
     const product = await Product.findById(productId);
+
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        message: 'Product not found',
+        productId: productId,
+        details: 'Please verify the product ID is correct and exists in the database'
+      });
+    }
+
+    // Validate stock
+    if (product.countInStock < quantity) {
+      return res.status(400).json({ 
+        message: 'Not enough stock available',
+        availableStock: product.countInStock,
+        requestedQuantity: quantity
+      });
     }
 
     // Create order item
@@ -96,14 +118,33 @@ router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
 
     await order.save();
 
+    // Update product stock
+    product.countInStock -= quantity;
+    await product.save();
+
     res.status(201).json({
       message: 'Order created successfully',
-      order
+      order: {
+        id: order._id,
+        totalPrice: order.totalPrice,
+        status: order.status,
+        dateOrder: order.dateOrder,
+        product: {
+          id: product._id,
+          name: product.name,
+          price: product.price
+        }
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Direct purchase error:', error);
+    res.status(500).json({ 
+      message: error.message,
+      details: 'An error occurred while processing your purchase'
+    });
   }
 });
+
 
 // Get user's orders
 router.get('/user/:userId', checkRole(['user']), async (req, res) => {

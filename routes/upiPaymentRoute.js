@@ -3,21 +3,38 @@ const router = express.Router();
 const { Order } = require('../models/orderSchema');
 const checkRole = require('../helpers/checkRole');
 
+// List supported UPI apps
+router.get('/supported-apps', (req, res) => {
+  res.json({
+    supportedApps: [
+      { id: 'gpay', name: 'Google Pay' },
+      { id: 'phonepe', name: 'PhonePe' },
+      { id: 'paytm', name: 'Paytm' }
+    ]
+  });
+});
+
 // Process UPI payment for an order
 router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { upiId, upiApp } = req.body; // upiApp can be 'paytm', 'gpay', 'phonepe'
+    const { upiId, upiApp } = req.body;
 
-    // Validate UPI ID format
+    // Basic UPI ID validation
     if (!upiId || !upiId.includes('@')) {
-      return res.status(400).json({ message: 'Invalid UPI ID format' });
+      return res.status(400).json({ 
+        message: 'Invalid UPI ID format',
+        example: 'username@upi'
+      });
     }
 
     // Validate UPI app
-    const validApps = ['paytm', 'gpay', 'phonepe'];
+    const validApps = ['gpay', 'phonepe', 'paytm'];
     if (!validApps.includes(upiApp)) {
-      return res.status(400).json({ message: 'Invalid UPI app' });
+      return res.status(400).json({ 
+        message: 'Invalid UPI app',
+        supportedApps: validApps
+      });
     }
 
     // Find the order
@@ -40,22 +57,25 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
       return res.status(400).json({ message: 'Order is already paid' });
     }
 
+    // Generate a unique transaction ID
+    const transactionId = `UPI${Date.now()}`;
+
     // Simulate UPI payment processing
     const paymentResult = {
       success: true,
-      transactionId: `UPI${Date.now()}`,
+      transactionId: transactionId,
       amount: order.totalPrice,
       currency: 'INR',
       upiApp,
       upiId,
-      paymentDate: new Date()
+      paymentDate: new Date(),
+      status: 'completed'
     };
 
     // Update order with payment details
     order.status = 'paid';
     order.paymentDetails = {
       transactionId: paymentResult.transactionId,
-      paymentMethod: 'upi',
       paymentStatus: 'completed',
       paymentDate: paymentResult.paymentDate,
       amount: paymentResult.amount,
@@ -70,7 +90,14 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
 
     res.status(200).json({
       message: 'UPI payment processed successfully',
-      payment: paymentResult,
+      payment: {
+        transactionId: paymentResult.transactionId,
+        amount: paymentResult.amount,
+        status: paymentResult.status,
+        upiApp: paymentResult.upiApp,
+        upiId: paymentResult.upiId,
+        paymentDate: paymentResult.paymentDate
+      },
       order: {
         id: order._id,
         status: order.status,
@@ -79,15 +106,18 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
     });
   } catch (error) {
     console.error('UPI payment processing error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: 'Payment processing failed',
+      error: error.message 
+    });
   }
 });
 
-// Get UPI payment status for an order
+// Get payment status for an order
 router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
-      .select('status paymentDetails totalPrice');
+      .select('status paymentDetails totalPrice dateOrder');
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
@@ -97,20 +127,20 @@ router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
       orderId: order._id,
       status: order.status,
       paymentDetails: order.paymentDetails || null,
-      totalAmount: order.totalPrice
+      totalAmount: order.totalPrice,
+      dateOrder: order.dateOrder
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get UPI payment history for a user
+// Get payment history for a user
 router.get('/history/:userId', checkRole(['user']), async (req, res) => {
   try {
     const orders = await Order.find({ 
       user: req.params.userId,
-      status: 'paid',
-      'paymentDetails.paymentMethod': 'upi'
+      status: 'paid'
     })
     .select('status paymentDetails totalPrice dateOrder')
     .sort({ dateOrder: -1 });

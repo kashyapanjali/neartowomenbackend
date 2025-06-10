@@ -16,20 +16,24 @@ const purchaseRoute = require('./routes/purchaseRoute');
 const rateLimit = require('express-rate-limit');
 const upiPaymentRoute = require('./routes/upiPaymentRoute');
 
-
 dotenv.config();
 const app = express();
-app.use(cors()); // Enables CORS
+
+// CORS configuration
+app.use(cors());
 app.options('*', cors());
 
-//middleware
-app.use(bodyParser.json());
+// Body parser middleware
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+
+// Other middleware
 app.use(morgan('tiny'));
 app.use(authJwt());
 app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
 app.use(errorHandler);
 
-const url = process.env.API_URL; // Default fallback if API_URL is undefined
+const url = process.env.API_URL || '/api'; // Default fallback if API_URL is undefined
 
 connectDB();
 
@@ -40,6 +44,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+// Routes
 app.use(`${url}/products`, productRoute);
 app.use(`${url}/category`, categoryRoute);
 app.use(`${url}/users`, userRoute);
