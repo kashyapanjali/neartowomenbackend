@@ -1,30 +1,30 @@
 // routes/userFeaturesRoute.js
 const express = require('express');
 const router = express.Router();
-const { User } = require('../models/userSchema');
+const { User, UserDetails } = require('../models/userSchema');
 const checkRole = require('../helpers/checkRole');
 
 // Address management
 router.post('/addresses', checkRole(['user']), async (req, res) => {
   try {
     const { userId, address } = req.body;
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).populate('userDetails');
     
-    if (!user) {
+    if (!user || !user.userDetails) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // If this is the first address, set it as default
-    if (user.shippingAddresses.length === 0) {
+    if (user.userDetails.shippingAddresses.length === 0) {
       address.isDefault = true;
     }
 
-    user.shippingAddresses.push(address);
-    await user.save();
+    user.userDetails.shippingAddresses.push(address);
+    await user.userDetails.save();
     
     res.status(200).json({ 
       message: 'Address added successfully', 
-      addresses: user.shippingAddresses 
+      addresses: user.userDetails.shippingAddresses 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -34,11 +34,11 @@ router.post('/addresses', checkRole(['user']), async (req, res) => {
 // Get user's shipping addresses
 router.get('/addresses/:userId', checkRole(['user']), async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
-    if (!user) {
+    const user = await User.findById(req.params.userId).populate('userDetails');
+    if (!user || !user.userDetails) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user.shippingAddresses);
+    res.status(200).json(user.userDetails.shippingAddresses);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -48,28 +48,28 @@ router.get('/addresses/:userId', checkRole(['user']), async (req, res) => {
 router.put('/addresses/default/:userId', checkRole(['user']), async (req, res) => {
   try {
     const { addressId } = req.body;
-    const user = await User.findById(req.params.userId);
+    const user = await User.findById(req.params.userId).populate('userDetails');
     
-    if (!user) {
+    if (!user || !user.userDetails) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Reset all addresses to non-default
-    user.shippingAddresses.forEach(addr => {
+    user.userDetails.shippingAddresses.forEach(addr => {
       addr.isDefault = false;
     });
 
     // Set the selected address as default
-    const address = user.shippingAddresses.id(addressId);
+    const address = user.userDetails.shippingAddresses.id(addressId);
     if (!address) {
       return res.status(404).json({ message: 'Address not found' });
     }
     address.isDefault = true;
 
-    await user.save();
+    await user.userDetails.save();
     res.status(200).json({ 
       message: 'Default address updated', 
-      addresses: user.shippingAddresses 
+      addresses: user.userDetails.shippingAddresses 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -80,9 +80,9 @@ router.put('/addresses/default/:userId', checkRole(['user']), async (req, res) =
 router.post('/upi-methods', checkRole(['user']), async (req, res) => {
   try {
     const { userId, upiMethod } = req.body;
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).populate('userDetails');
     
-    if (!user) {
+    if (!user || !user.userDetails) {
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -104,16 +104,16 @@ router.post('/upi-methods', checkRole(['user']), async (req, res) => {
     }
 
     // If this is the first UPI method, set it as default
-    if (user.upiMethods.length === 0) {
+    if (user.userDetails.upiMethods.length === 0) {
       upiMethod.isDefault = true;
     }
 
-    user.upiMethods.push(upiMethod);
-    await user.save();
+    user.userDetails.upiMethods.push(upiMethod);
+    await user.userDetails.save();
     
     res.status(200).json({ 
       message: 'UPI method added successfully', 
-      upiMethods: user.upiMethods 
+      upiMethods: user.userDetails.upiMethods 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -123,11 +123,11 @@ router.post('/upi-methods', checkRole(['user']), async (req, res) => {
 // Get user's UPI methods
 router.get('/upi-methods/:userId', checkRole(['user']), async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
-    if (!user) {
+    const user = await User.findById(req.params.userId).populate('userDetails');
+    if (!user || !user.userDetails) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user.upiMethods);
+    res.status(200).json(user.userDetails.upiMethods);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -137,28 +137,28 @@ router.get('/upi-methods/:userId', checkRole(['user']), async (req, res) => {
 router.put('/upi-methods/default/:userId', checkRole(['user']), async (req, res) => {
   try {
     const { upiMethodId } = req.body;
-    const user = await User.findById(req.params.userId);
+    const user = await User.findById(req.params.userId).populate('userDetails');
     
-    if (!user) {
+    if (!user || !user.userDetails) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Reset all UPI methods to non-default
-    user.upiMethods.forEach(method => {
+    user.userDetails.upiMethods.forEach(method => {
       method.isDefault = false;
     });
 
     // Set the selected UPI method as default
-    const upiMethod = user.upiMethods.id(upiMethodId);
+    const upiMethod = user.userDetails.upiMethods.id(upiMethodId);
     if (!upiMethod) {
       return res.status(404).json({ message: 'UPI method not found' });
     }
     upiMethod.isDefault = true;
 
-    await user.save();
+    await user.userDetails.save();
     res.status(200).json({ 
       message: 'Default UPI method updated', 
-      upiMethods: user.upiMethods 
+      upiMethods: user.userDetails.upiMethods 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

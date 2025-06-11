@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Core user schema for authentication
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -17,15 +18,45 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
 
-  phone: {
-    type: String,
-    default: '',
-  },
-
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
+  },
+
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+
+  // Additional user details will be stored in a separate collection
+  userDetails: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'UserDetails'
+  }
+});
+
+userSchema.virtual('id').get(function () {
+  return this._id.toHexString();
+});
+
+userSchema.set('toJSON', {
+  virtual: true,
+});
+
+const User = mongoose.model('User', userSchema);
+
+// Separate schema for additional user details
+const userDetailsSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+
+  phone: {
+    type: String,
+    default: '',
   },
 
   // Single address field for basic user info
@@ -42,11 +73,6 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: '',
     }
-  },
-
-  isActive: {
-    type: Boolean,
-    default: true
   },
 
   // Multiple addresses for shipping
@@ -75,14 +101,6 @@ const userSchema = new mongoose.Schema({
   }]
 });
 
-userSchema.virtual('id').get(function () {
-  return this._id.toHexString();
-});
+const UserDetails = mongoose.model('UserDetails', userDetailsSchema);
 
-userSchema.set('toJSON', {
-  virtual: true,
-});
-
-const User = mongoose.model('User', userSchema);
-
-module.exports = { User };
+module.exports = { User, UserDetails };

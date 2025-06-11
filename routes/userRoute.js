@@ -1,5 +1,5 @@
 const express = require('express');
-const { User } = require('../models/userSchema');
+const { User, UserDetails } = require('../models/userSchema');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -8,7 +8,7 @@ const checkRole = require('../helpers/checkRole');
 // Register new user
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, phone, street, zip, city } = req.body;
+    const { name, email, password } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -21,14 +21,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Create user with core details
     const user = new User({
       name,
       email,
       passwordHash: bcrypt.hashSync(password, 10),
-      phone: phone || '',
-      street: street || '',
-      zip: zip || '',
-      city: city || '',
       role: 'user'
     });
 
@@ -36,6 +33,16 @@ router.post('/register', async (req, res) => {
     if (!savedUser) {
       return res.status(400).json({ message: 'User could not be created' });
     }
+
+    // Create empty user details
+    const userDetails = new UserDetails({
+      user: savedUser._id
+    });
+    await userDetails.save();
+
+    // Update user with userDetails reference
+    savedUser.userDetails = userDetails._id;
+    await savedUser.save();
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -63,6 +70,7 @@ router.post('/register-admin', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Create admin user with core details
     const user = new User({
       name,
       email,
@@ -74,6 +82,16 @@ router.post('/register-admin', async (req, res) => {
     if (!savedUser) {
       return res.status(400).json({ message: 'Admin could not be created' });
     }
+
+    // Create empty user details
+    const userDetails = new UserDetails({
+      user: savedUser._id
+    });
+    await userDetails.save();
+
+    // Update user with userDetails reference
+    savedUser.userDetails = userDetails._id;
+    await savedUser.save();
 
     res.status(201).json({
       message: 'Admin registered successfully',
@@ -134,16 +152,17 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get user profile - MUST BE BEFORE /:id ROUTES
+// Get user profile
 router.get('/', async (req, res) => {
   try {
-    // Check if user is authenticated
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Find user by ID from token
-    const user = await User.findById(req.user.userId).select('-passwordHash');
+    const user = await User.findById(req.user.userId)
+      .select('-passwordHash')
+      .populate('userDetails');
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -154,11 +173,8 @@ router.get('/', async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        phone: user.phone,
-        street: user.street,
-        zip: user.zip,
-        city: user.city,
-        role: user.role
+        role: user.role,
+        details: user.userDetails
       }
     });
   } catch (error) {
@@ -167,40 +183,43 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Update user profile - MUST BE BEFORE /:id ROUTES
+// Update user profile
 router.put('/', async (req, res) => {
   try {
-    // Check if user is authenticated
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
     const { name, phone, street, zip, city } = req.body;
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.userId).populate('userDetails');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update user fields
-    user.name = name || user.name;
-    user.phone = phone || user.phone;
-    user.street = street || user.street;
-    user.zip = zip || user.zip;
-    user.city = city || user.city;
+    // Update core user details
+    if (name) {
+      user.name = name;
+    }
+    await user.save();
 
-    const updatedUser = await user.save();
+    // Update additional user details
+    if (user.userDetails) {
+      if (phone) user.userDetails.phone = phone;
+      if (street) user.userDetails.address.street = street;
+      if (zip) user.userDetails.address.zip = zip;
+      if (city) user.userDetails.address.city = city;
+      await user.userDetails.save();
+    }
+
     res.status(200).json({
       message: 'Profile updated successfully',
       user: {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        street: updatedUser.street,
-        zip: updatedUser.zip,
-        city: updatedUser.city,
-        role: updatedUser.role
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        details: user.userDetails
       }
     });
   } catch (error) {
@@ -219,19 +238,23 @@ router.get('/count', async (req, res) => {
   }
 });
 
-// Admin routes - MUST BE AFTER /profile ROUTES
-router.get('/', checkRole(['admin']), async (req, res) => {
+// Admin routes
+router.get('/admin', checkRole(['admin']), async (req, res) => {
   try {
-    const userList = await User.find().select('-passwordHash');
+    const userList = await User.find()
+      .select('-passwordHash')
+      .populate('userDetails');
     res.status(200).json(userList);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-router.get('/:id', checkRole(['admin']), async (req, res) => {
+router.get('/admin/:id', checkRole(['admin']), async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-passwordHash');
+    const user = await User.findById(req.params.id)
+      .select('-passwordHash')
+      .populate('userDetails');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -241,12 +264,21 @@ router.get('/:id', checkRole(['admin']), async (req, res) => {
   }
 });
 
-router.delete('/:id', checkRole(['admin']), async (req, res) => {
+router.delete('/admin/:id', checkRole(['admin']), async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Delete user details first
+    if (user.userDetails) {
+      await UserDetails.findByIdAndDelete(user.userDetails);
+    }
+
+    // Then delete user
+    await User.findByIdAndDelete(req.params.id);
+
     res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
