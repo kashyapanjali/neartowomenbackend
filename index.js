@@ -54,7 +54,7 @@ app.use(`${url}/purchase`, purchaseRoute);
 app.use(`${url}/upi-payments`, upiPaymentRoute);
 
 // app.get(`${url}/name`, (req, res) => {
-// 	res.send("Hello API");
+// 	res.send("Hello APIS");
 // });
 // app.post(`${url}/name`, (req, res) => {
 // 	const newProduct = req.body;
