@@ -45,15 +45,12 @@ router.post('/', checkRole(['admin']), async (req, res) => {
     const product = new Product({
       name: req.body.name,
       description: req.body.description,
-      richDescription: req.body.richDescription,
       image: req.body.image,
       brand: req.body.brand,
       price: req.body.price,
       category: req.body.category,
       countInStock: req.body.countInStock,
-      rating: req.body.rating,
-      numReviews: req.body.numReviews,
-      isFeatures: req.body.isFeatures
+      isFeatures: req.body.isFeatures, // Ensure consistency with schema
     });
 
     // Save product
@@ -199,14 +196,11 @@ router.put('/:id', checkRole(['admin']), async (req, res) => {
       {
         name: req.body.name,
         description: req.body.description,
-        richDescription: req.body.richDescription,
         image: req.body.image,
         brand: req.body.brand,
         price: req.body.price,
         category: req.body.category,
         countInStock: req.body.countInStock,
-        rating: req.body.rating,
-        numReviews: req.body.numReviews,
         isFeatures: req.body.isFeatures, // Ensure consistency with schema
       },
       { new: true }

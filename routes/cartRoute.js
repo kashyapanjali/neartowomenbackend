@@ -4,7 +4,7 @@ const { Cart } = require('../models/cartSchema');
 const { Product } = require('../models/productSchema');
 const mongoose = require('mongoose');
 
-// Get user's cart
+// Get user's cart : admin
 router.get('/:userId', async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.params.userId })
