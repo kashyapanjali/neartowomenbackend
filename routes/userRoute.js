@@ -108,7 +108,7 @@ router.post('/register-admin', async (req, res) => {
   }
 });
 
-// Login user
+// Login for both user and admin
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
