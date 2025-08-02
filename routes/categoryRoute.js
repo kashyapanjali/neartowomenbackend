@@ -38,9 +38,9 @@ router.put('/:id', async (req, res) => {
       req.params.id, // Get ID from URL
       {
         name: req.body.name,
-        color: req.body.color,
-        icon: req.body.icon,
-        image: req.body.image,
+        // color: req.body.color,
+        // icon: req.body.icon,
+        // image: req.body.image,
       },
       { new: true }
     );
@@ -59,9 +59,9 @@ router.put('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   let category = new Category({
     name: req.body.name,
-    color: req.body.color,
-    icon: req.body.icon,
-    image: req.body.image,
+    // color: req.body.color,
+    // icon: req.body.icon,
+    // image: req.body.image,
   });
   category = await category.save();
 
