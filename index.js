@@ -29,9 +29,10 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // Other middleware
 app.use(morgan('tiny'));
-app.use(authJwt());
 app.use('/public/uploads', express.static(__dirname + '/public/uploads'));
-app.use(errorHandler);
+
+// Apply JWT authentication middleware
+app.use(authJwt());
 
 const url = process.env.API_URL || '/api'; // Default fallback if API_URL is undefined
 
@@ -44,7 +45,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Routes
+// Routes - Register these BEFORE error handler
 app.use(`${url}/products`, productRoute);
 app.use(`${url}/category`, categoryRoute);
 app.use(`${url}/users`, userRoute);
@@ -52,6 +53,11 @@ app.use(`${url}/orders`, orderRoute);
 app.use(`${url}/cart`, cartRoute);
 app.use(`${url}/purchase`, purchaseRoute);
 app.use(`${url}/upi-payments`, upiPaymentRoute);
+
+// Debug route to test if server is working
+app.get(`${url}/test`, (req, res) => {
+  res.json({ message: 'API is working!' });
+});
 
 // app.get(`${url}/name`, (req, res) => {
 // 	res.send("Hello APIS");
@@ -62,7 +68,11 @@ app.use(`${url}/upi-payments`, upiPaymentRoute);
 // 	res.send(newProduct);
 // });
 
+// Error handler middleware - Apply AFTER routes
+app.use(errorHandler);
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`App is running on http://localhost:${PORT}`);
+  console.log(`API URL: ${url}`);
 });

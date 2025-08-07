@@ -59,6 +59,7 @@ router.put('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   let category = new Category({
     name: req.body.name,
+    //removed below field
     // color: req.body.color,
     // icon: req.body.icon,
     // image: req.body.image,
