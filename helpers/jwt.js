@@ -4,8 +4,6 @@ function authJwt() {
   const secret = process.env.secret;
   const api = process.env.API_URL;
   
-  console.log('JWT Secret:', secret); // Debug: Check if secret is loaded
-  console.log('API URL:', api); // Debug: Check API URL
   
   return expressjwt({
     secret,
@@ -14,10 +12,8 @@ function authJwt() {
     getToken: function fromHeaderOrQuerystring(req) {
       if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
         const token = req.headers.authorization.split(' ')[1];
-        console.log('Received token:', token ? 'Token exists' : 'No token'); // Debug
         return token;
       }
-      console.log('No Authorization header found'); // Debug
       return null;
     }
   }).unless({
