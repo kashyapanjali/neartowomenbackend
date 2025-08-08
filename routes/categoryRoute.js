@@ -1,6 +1,7 @@
 const express = require('express');
 const { Category } = require('../models/categorySchema');
 const router = express.Router();
+const checkRole = require('../helpers/checkRole');
 
 //router for all get category
 router.get('/', async (req, res) => {
@@ -27,7 +28,7 @@ router.get('/:id', async (req, res) => {
 });
 
 //router for update the category
-router.put('/:id', async (req, res) => {
+router.put('/:id', checkRole(['admin']), async (req, res) => {
   try {
     if (!req.body.name) {
       return res
@@ -56,8 +57,8 @@ router.put('/:id', async (req, res) => {
 });
 
 //router for add product by category
-router.post('/', async (req, res) => {
-  let category = new Category({
+router.post('/', checkRole(['admin']), async (req, res) => { 
+    let category = new Category({
     name: req.body.name,
     //removed below field
     // color: req.body.color,
@@ -73,7 +74,7 @@ router.post('/', async (req, res) => {
 });
 
 //delete category
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', checkRole(['admin']), async (req, res) => {
   try {
     const deleteCategory = await Category.findByIdAndDelete(req.params.id);
     if (deleteCategory) {

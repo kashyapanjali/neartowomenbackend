@@ -15,6 +15,7 @@ const cartRoute = require('./routes/cartRoute');
 const purchaseRoute = require('./routes/purchaseRoute');
 const rateLimit = require('express-rate-limit');
 const upiPaymentRoute = require('./routes/upiPaymentRoute');
+const userFeaturesRoute = require('./routes/userFeaturesRoute');
 
 dotenv.config();
 const app = express();
@@ -53,6 +54,7 @@ app.use(`${url}/orders`, orderRoute);
 app.use(`${url}/cart`, cartRoute);
 app.use(`${url}/purchase`, purchaseRoute);
 app.use(`${url}/upi-payments`, upiPaymentRoute);
+app.use(`${url}/user-features`, userFeaturesRoute);
 
 // Debug route to test if server is working
 app.get(`${url}/test`, (req, res) => {

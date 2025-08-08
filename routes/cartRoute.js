@@ -4,8 +4,22 @@ const { Cart } = require('../models/cartSchema');
 const { Product } = require('../models/productSchema');
 const mongoose = require('mongoose');
 
+// Helper function to validate user access
+const validateUserAccess = (req, res, next) => {
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  const requestedUserId = req.params.userId || req.body.userId;
+  if (req.user.userId !== requestedUserId) {
+    return res.status(403).json({ message: 'Access denied: You can only access your own cart' });
+  }
+  
+  next();
+};
+
 // Get user's cart : admin
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', validateUserAccess, async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.params.userId })
       .populate('cartItems.product');
@@ -20,7 +34,7 @@ router.get('/:userId', async (req, res) => {
 
 
 // Add item to cart
-router.post('/', async (req, res) => {
+router.post('/', validateUserAccess, async (req, res) => {
   try {
     const { userId, productId, quantity } = req.body;
     
@@ -71,7 +85,7 @@ router.post('/', async (req, res) => {
 
 
 // Update cart item quantity
-router.put('/:userId', async (req, res) => {
+router.put('/:userId', validateUserAccess, async (req, res) => {
   try {
     const userId = req.params.userId;
     const { productId, quantity } = req.body;
@@ -134,7 +148,7 @@ router.put('/:userId', async (req, res) => {
 
 // Remove item from cart
 //delete by id : http://localhost:3000/api/cart
-router.delete('/:userId', async (req, res) => {
+router.delete('/:userId', validateUserAccess, async (req, res) => {
   try {
     const userId = req.params.userId;
     const { productId } = req.body;
@@ -177,7 +191,7 @@ router.delete('/:userId', async (req, res) => {
 
 
 // Clear cart
-router.delete('/clear/:userId', async (req, res) => {
+router.delete('/clear/:userId', validateUserAccess, async (req, res) => {
   try {
     const cart = await Cart.findOneAndDelete({ user: req.params.userId });
     res.status(200).json({ message: 'Cart cleared successfully' });
