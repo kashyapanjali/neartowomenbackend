@@ -6,12 +6,14 @@ const mongoose = require('mongoose');
 
 // Helper function to validate user access
 const validateUserAccess = (req, res, next) => {
-  if (!req.user || !req.user.userId) {
-    return res.status(401).json({ message: 'Authentication required' });
+  const requestedUserId = req.user?.userId;
+  
+  if (!requestedUserId) {
+    return res.status(401).json({ message: 'Unauthorized: No user info in token' });
   }
   
-  const requestedUserId = req.params.userId || req.body.userId;
-  if (req.user.userId !== requestedUserId) {
+  // authentication middleware that sets req.user, use it
+  if (req.params.userId && req.params.userId !== requestedUserId) {
     return res.status(403).json({ message: 'Access denied: You can only access your own cart' });
   }
   
@@ -21,7 +23,8 @@ const validateUserAccess = (req, res, next) => {
 // Get user's cart : admin
 router.get('/:userId', validateUserAccess, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.params.userId })
+    const userId = req.user.userId;
+    const cart = await Cart.findOne({ user: userId })
       .populate('cartItems.product');
     if (!cart) {
       return res.status(200).json({ cartItems: [], totalAmount: 0 });
@@ -33,10 +36,11 @@ router.get('/:userId', validateUserAccess, async (req, res) => {
 });
 
 
-// Add item to cart
+// Add item to cart - total calculation
 router.post('/', validateUserAccess, async (req, res) => {
   try {
-    const { userId, productId, quantity } = req.body;
+    const userId = req.user.userId;
+    const { productId, quantity } = req.body;
     
     // Validate product exists and has enough stock
     const product = await Product.findById(productId);
@@ -63,37 +67,43 @@ router.post('/', validateUserAccess, async (req, res) => {
       );
 
       if (existingItem) {
-        // If item exists, increment the quantity
         existingItem.quantity += quantity;
       } else {
-        // If item doesn't exist, add new item
         cart.cartItems.push({ product: productId, quantity });
       }
       
-      // Recalculate total amount
-      cart.totalAmount = cart.cartItems.reduce((total, item) => {
-        return total + (item.product.price * item.quantity);
-      }, 0);
+      // FIXED: Recalculate total amount by fetching all product prices
+      let totalAmount = 0;
+      for (let item of cart.cartItems) {
+        const itemProduct = await Product.findById(item.product);
+        if (itemProduct) {
+          totalAmount += itemProduct.price * item.quantity;
+        }
+      }
+      cart.totalAmount = totalAmount;
     }
 
     await cart.save();
-    res.status(200).json(cart);
+    
+    // Return populated cart
+    const populatedCart = await Cart.findById(cart._id).populate('cartItems.product');
+    res.status(200).json(populatedCart);
   } catch (error) {
+    console.error('Add to cart error:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-
 // Update cart item quantity
 router.put('/:userId', validateUserAccess, async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user.userId;
     const { productId, quantity } = req.body;
     
     // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid user ID format' });
-    }
+    // if (!mongoose.Types.ObjectId.isValid(userId)) {
+    //   return res.status(400).json({ message: 'Invalid user ID format' });
+    // }
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Invalid product ID format' });
     }
@@ -150,13 +160,15 @@ router.put('/:userId', validateUserAccess, async (req, res) => {
 //delete by id : http://localhost:3000/api/cart
 router.delete('/:userId', validateUserAccess, async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user.userId;
+
     const { productId } = req.body;
     
     // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid user ID format' });
-    }
+    // if (!mongoose.Types.ObjectId.isValid(userId)) {
+    //   return res.status(400).json({ message: 'Invalid user ID format' });
+    // }
+
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Invalid product ID format' });
     }
@@ -193,7 +205,7 @@ router.delete('/:userId', validateUserAccess, async (req, res) => {
 // Clear cart
 router.delete('/clear/:userId', validateUserAccess, async (req, res) => {
   try {
-    const cart = await Cart.findOneAndDelete({ user: req.params.userId });
+    await Cart.findOneAndDelete({ user: req.user.userId  });
     res.status(200).json({ message: 'Cart cleared successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
