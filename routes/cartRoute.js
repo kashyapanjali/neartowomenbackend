@@ -4,6 +4,7 @@ const { Cart } = require('../models/cartSchema');
 const { Product } = require('../models/productSchema');
 const mongoose = require('mongoose');
 
+
 // Helper function to validate user access
 const validateUserAccess = (req, res, next) => {
   const requestedUserId = req.user?.userId;
@@ -19,6 +20,7 @@ const validateUserAccess = (req, res, next) => {
   
   next();
 };
+
 
 // Get user's cart : admin
 router.get('/:userId', validateUserAccess, async (req, res) => {
@@ -94,6 +96,7 @@ router.post('/', validateUserAccess, async (req, res) => {
   }
 });
 
+
 // Update cart item quantity
 router.put('/:userId', validateUserAccess, async (req, res) => {
   try {
@@ -156,6 +159,7 @@ router.put('/:userId', validateUserAccess, async (req, res) => {
   }
 });
 
+
 // Remove item from cart
 //delete by id : http://localhost:3000/api/cart
 router.delete('/:userId', validateUserAccess, async (req, res) => {
@@ -200,6 +204,7 @@ router.delete('/:userId', validateUserAccess, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 
 // Clear cart

@@ -59,6 +59,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
+
 // Register admin user
 router.post('/register-admin', async (req, res) => {
   try {
@@ -108,6 +109,7 @@ router.post('/register-admin', async (req, res) => {
   }
 });
 
+
 // Login for both user and admin
 router.post('/login', async (req, res) => {
   try {
@@ -152,6 +154,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
 // Get user profile
 router.get('/', async (req, res) => {
   try {
@@ -182,6 +185,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Update user profile
 router.put('/', async (req, res) => {
@@ -228,6 +232,7 @@ router.put('/', async (req, res) => {
   }
 });
 
+
 // Get user count
 router.get('/count', async (req, res) => {
   try {
@@ -237,6 +242,7 @@ router.get('/count', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Admin routes
 router.get('/admin', checkRole(['admin']), async (req, res) => {
@@ -249,6 +255,7 @@ router.get('/admin', checkRole(['admin']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 router.get('/admin/:id', checkRole(['admin']), async (req, res) => {
   try {
@@ -263,6 +270,7 @@ router.get('/admin/:id', checkRole(['admin']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 router.delete('/admin/:id', checkRole(['admin']), async (req, res) => {
   try {

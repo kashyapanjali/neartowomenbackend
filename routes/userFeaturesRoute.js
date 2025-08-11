@@ -4,6 +4,7 @@ const router = express.Router();
 const { User, UserDetails } = require('../models/userSchema');
 const checkRole = require('../helpers/checkRole');
 
+
 // Address management
 router.post('/addresses', checkRole(['user']), async (req, res) => {
   try {
@@ -31,6 +32,7 @@ router.post('/addresses', checkRole(['user']), async (req, res) => {
   }
 });
 
+
 // Get user's shipping addresses
 router.get('/addresses/:userId', checkRole(['user']), async (req, res) => {
   try {
@@ -43,6 +45,7 @@ router.get('/addresses/:userId', checkRole(['user']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Set default shipping address
 router.put('/addresses/default/:userId', checkRole(['user']), async (req, res) => {
@@ -75,6 +78,7 @@ router.put('/addresses/default/:userId', checkRole(['user']), async (req, res) =
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // UPI payment methods
 router.post('/upi-methods', checkRole(['user']), async (req, res) => {
@@ -120,6 +124,7 @@ router.post('/upi-methods', checkRole(['user']), async (req, res) => {
   }
 });
 
+
 // Get user's UPI methods
 router.get('/upi-methods/:userId', checkRole(['user']), async (req, res) => {
   try {
@@ -132,6 +137,7 @@ router.get('/upi-methods/:userId', checkRole(['user']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Set default UPI method
 router.put('/upi-methods/default/:userId', checkRole(['user']), async (req, res) => {
@@ -164,5 +170,6 @@ router.put('/upi-methods/default/:userId', checkRole(['user']), async (req, res)
     res.status(500).json({ message: error.message });
   }
 });
+
 
 module.exports = router;

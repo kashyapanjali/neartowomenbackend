@@ -8,6 +8,7 @@ const { Product } = require('../models/productSchema');
 const checkRole = require('../helpers/checkRole');
 const mongoose = require('mongoose');
 
+
 // Purchase from cart
 router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
   try {
@@ -63,6 +64,7 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Direct purchase (without cart)
 router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
@@ -165,6 +167,7 @@ router.get('/user/:userId', checkRole(['user']), async (req, res) => {
   }
 });
 
+
 // Get order details
 router.get('/:orderId', checkRole(['user']), async (req, res) => {
   try {
@@ -186,5 +189,6 @@ router.get('/:orderId', checkRole(['user']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 module.exports = router;

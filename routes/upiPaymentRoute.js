@@ -14,6 +14,7 @@ router.get('/supported-apps', (req, res) => {
   });
 });
 
+
 // Process UPI payment for an order
 router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
   try {
@@ -113,6 +114,7 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
   }
 });
 
+
 // Get payment status for an order
 router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
   try {
@@ -134,6 +136,7 @@ router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Get payment history for a user
 router.get('/history/:userId', checkRole(['user']), async (req, res) => {

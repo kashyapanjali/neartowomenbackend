@@ -6,12 +6,14 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const checkRole = require('../helpers/checkRole');
 
+
 //validate the uploaded file from the users-------->
 const FILE_TYPE_MAP = {
   'image/png': 'png',
   'image/jpeg': 'jpeg',
   'image/jpg': 'jpg',
 };
+
 
 //add multer to upload the gallery of image
 const storage = multer.diskStorage({
@@ -31,7 +33,9 @@ const storage = multer.diskStorage({
   },
 });
 
+
 const uploadOptions = multer({ storage: storage });
+
 
 //model router
 //add the product
@@ -69,6 +73,7 @@ router.post('/', checkRole(['admin']), async (req, res) => {
   }
 });
 
+
 // Route to get all products
 router.get('/', async (req, res) => {
   try {
@@ -83,6 +88,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 // Search products - This must come BEFORE the /:id route
 router.get('/search', async (req, res) => {
@@ -156,6 +162,7 @@ router.get('/search', async (req, res) => {
   }
 });
 
+
 //find the product by id
 router.get('/:id', async (req, res) => {
   try {
@@ -169,6 +176,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+
 //delete by id
 router.delete('/:id', checkRole(['admin']), async (req, res) => {
   try {
@@ -181,6 +189,7 @@ router.delete('/:id', checkRole(['admin']), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 // Route to update a product by ID
 router.put('/:id', checkRole(['admin']), async (req, res) => {
@@ -214,6 +223,7 @@ router.put('/:id', checkRole(['admin']), async (req, res) => {
   }
 });
 
+
 //for the Admin see how many products
 router.get('/get/count', checkRole(['admin']), async (req, res) => {
   const countProduct = await Product.countDocuments();
@@ -225,6 +235,7 @@ router.get('/get/count', checkRole(['admin']), async (req, res) => {
   });
 });
 
+
 //check features
 router.get('/get/Featured/:count', async (req, res) => {
   const count = req.params.count ? req.params.count : 0;
@@ -234,6 +245,7 @@ router.get('/get/Featured/:count', async (req, res) => {
   }
   res.send(product);
 });
+
 
 router.put(
   'gallery-images/:id',

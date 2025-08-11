@@ -4,6 +4,7 @@ const { Order } = require('../models/orderSchema');
 const { OrderItem } = require('../models/order-itemSchema');
 const checkRole = require('../helpers/checkRole');
 
+
 // Admin routes
 // Get all orders (admin only)
 router.get('/', checkRole(['admin']), async (req, res) => {
@@ -24,6 +25,7 @@ router.get('/', checkRole(['admin']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Get order by ID (admin only)
 router.get('/:id', checkRole(['admin']), async (req, res) => {
@@ -47,6 +49,7 @@ router.get('/:id', checkRole(['admin']), async (req, res) => {
   }
 });
 
+
 // Update order status (admin only)
 router.put('/:id', checkRole(['admin']), async (req, res) => {
   try {
@@ -65,6 +68,8 @@ router.put('/:id', checkRole(['admin']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+
 
 // Delete order (admin only)
 router.delete('/:id', checkRole(['admin']), async (req, res) => {
@@ -92,6 +97,8 @@ router.delete('/:id', checkRole(['admin']), async (req, res) => {
   }
 });
 
+
+
 // Get total sales (admin only)
 router.get('/get/totalsales', checkRole(['admin']), async (req, res) => {
   try {
@@ -108,6 +115,7 @@ router.get('/get/totalsales', checkRole(['admin']), async (req, res) => {
   }
 });
 
+
 // Get order count (admin only)
 router.get('/get/count', checkRole(['admin']), async (req, res) => {
   try {
@@ -117,6 +125,7 @@ router.get('/get/count', checkRole(['admin']), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Get user's orders
 router.get('/user/:userId', checkRole(['user']), async (req, res) => {
