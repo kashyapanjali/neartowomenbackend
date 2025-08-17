@@ -129,6 +129,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid password' });
     }
 
+    //jwt generate for the users and admin
     const token = jwt.sign(
       {
         userId: user.id,

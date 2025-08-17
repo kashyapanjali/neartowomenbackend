@@ -14,7 +14,7 @@ router.get('/', checkRole(['admin']), async (req, res) => {
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'products',
+          path: 'product',
           populate: 'category'
         }
       })
@@ -35,7 +35,7 @@ router.get('/:id', checkRole(['admin']), async (req, res) => {
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'products',
+          path: 'product',
           populate: 'category'
         }
       });
@@ -134,7 +134,7 @@ router.get('/user/:userId', checkRole(['user']), async (req, res) => {
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'products',
+          path: 'product',
           populate: 'category'
         }
       })

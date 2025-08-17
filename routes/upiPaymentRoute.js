@@ -44,7 +44,7 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'products',
+          path: 'product',
           populate: 'category'
         }
       });
