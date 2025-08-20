@@ -9,8 +9,20 @@ const checkRole = require('../helpers/checkRole');
 const mongoose = require('mongoose');
 
 
+// Ensure userId in params matches authenticated user
+const validateUserAccess = (req, res, next) => {
+  const tokenUserId = req.user?.userId;
+  if (!tokenUserId) {
+    return res.status(401).json({ message: 'Unauthorized: No user info in token' });
+  }
+  if (req.params.userId && req.params.userId !== tokenUserId) {
+    return res.status(403).json({ message: 'Access denied: You can only access your own resources' });
+  }
+  next();
+};
+
 // Purchase from cart
-router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
+router.post('/cart/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
   try {
     // Get cart
     const cart = await Cart.findOne({ user: req.params.userId })
@@ -67,7 +79,7 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
 
 
 // Direct purchase (without cart)
-router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
+router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
   try {
     const { productId, quantity, shippingAddress, city, zip, phone } = req.body;
 
@@ -149,7 +161,7 @@ router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
 
 
 // Get user's orders
-router.get('/user/:userId', checkRole(['user']), async (req, res) => {
+router.get('/user/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.params.userId })
       .populate({
@@ -182,6 +194,11 @@ router.get('/:orderId', checkRole(['user']), async (req, res) => {
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Ensure the order belongs to the authenticated user
+    if (order.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Access denied: You can only view your own orders' });
     }
 
     res.status(200).json(order);

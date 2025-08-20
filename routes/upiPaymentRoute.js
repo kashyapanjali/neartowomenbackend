@@ -3,6 +3,92 @@ const router = express.Router();
 const { Order } = require('../models/orderSchema');
 const checkRole = require('../helpers/checkRole');
 
+
+//for payment gateway methods
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+const e = require('express');
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret:process.env.RAZORPAY_KEY_SECRET,
+});
+
+
+//create gateway order for an existing Order
+router.post('/gateway/create/:orderId',checkRole(['user']),async(req,res)=>{
+    try{
+      const order = await Order.findById(req.params.orderId).select('user totalPrice status');
+      if(!order){
+        return res.status(404).json({message:'Order not found'});
+      }
+      if(order.status.toString() !== req.user.userId){
+          return res.status(403).json({message:'Access denied'});
+      }
+      if(order.status === 'paid'){
+        return res.status(400).json({message:'Order is already paid'});
+      }
+      const amount = Math.round(order.totalPrice * 100);
+      const rzporder = await razorpay.orders.create({
+        amount:amountPaise,
+        currency:'INR',
+        receipt:String(order._id),
+        notes:{userId:String(order.user)},
+        payment_capture:1
+      });
+
+      res.status(200).json({
+        keyId:process.env.RAZORPAY_KEY_ID,
+        gatewayOrderId:rzporder.id,
+        amount:rzporder.amount,
+        currency:rzporder.currency,
+      })
+    }catch(e){
+      res.status(500).json({message:e.message})
+    }
+});
+
+
+//verify payment signature and mark paid
+router.post('/gateway/verify',checkRole(['user']),async(req,res)=>{
+  try{
+    const{orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature} = req.body;
+    const expected = crypto
+    .createHmac('sha256',process.env.RAZORPAY_KEY_SECRET)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+    .digest('hex');
+    
+     
+    if(expected !== razorpay_signature){
+      return res.status(400).json({message:'Invalid payment signature'});
+    }
+
+    const order = await Order.findById(orderId).select('user totalPrice status');
+    if(!order){
+      return res.status(404).json({message:'Order not found'});
+    }
+
+    if(order.user.toString() !== req.user.userId){
+      return res.status(403).json({message:'Access denied'});
+    }
+
+    order.status = 'paid';
+    order.paymentDetails = {
+      transactionId:razorpay_payment_id,
+      paymentStatus:'completed',
+      paymentDate:new date(),
+      amount:order.totalPrice,
+      currency:'INR',
+      upiDetails:{app:undefined, upiId:undefined}
+    };
+
+    await order.save();
+    res.status(200).json({message:'Payment verified and order marked as paid'});
+  }catch(e){
+    res.status(500).json({message:e.message});
+  }
+})
+
+
 // List supported UPI apps
 router.get('/supported-apps', (req, res) => {
   res.json({
@@ -56,6 +142,11 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
     // Check if order is already paid
     if (order.status === 'paid') {
       return res.status(400).json({ message: 'Order is already paid' });
+    }
+
+    // Ensure the order belongs to the authenticated user
+    if (order.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Access denied: You can only pay for your own orders' });
     }
 
     // Generate a unique transaction ID
@@ -119,10 +210,15 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
 router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
-      .select('status paymentDetails totalPrice dateOrder');
+      .select('status paymentDetails totalPrice dateOrder user');
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Ensure the order belongs to the authenticated user
+    if (order.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Access denied: You can only view your own orders' });
     }
 
     res.status(200).json({
@@ -141,6 +237,11 @@ router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
 // Get payment history for a user
 router.get('/history/:userId', checkRole(['user']), async (req, res) => {
   try {
+    // Ensure the requested userId matches the authenticated user
+    if (req.params.userId !== req.user.userId) {
+      return res.status(403).json({ message: 'Access denied: You can only view your own payment history' });
+    }
+
     const orders = await Order.find({ 
       user: req.params.userId,
       status: 'paid'
