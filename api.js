@@ -53,3 +53,7 @@ export const UPI_SUPPORTED_APPS_API = '/upi-payments/supported-apps';
 export const UPI_PROCESS_PAYMENT_API = (orderId) => `/upi-payments/process/${orderId}`;
 export const UPI_PAYMENT_STATUS_API = (orderId) => `/upi-payments/status/${orderId}`;
 export const UPI_PAYMENT_HISTORY_API = (userId) => `/upi-payments/history/${userId}`;
+
+// Razorpay Gateway APIs
+export const UPI_GATEWAY_CREATE_API = (orderId) => `/upi-payments/gateway/create/${orderId}`;
+export const UPI_GATEWAY_VERIFY_API = '/upi-payments/gateway/verify';
