@@ -9,20 +9,12 @@ const orderSchema = mongoose.Schema({
     },
   ],
 
+  // Link to chosen shipping address
+  // User enters address at checkout
   shippingAddress: {
-    //full address
-    type: String,
-    required: true,
-  },
-
-  city: {
-    type: String,
-    required: true,
-  },
-
-  zip: {
-    type: String,
-    required: true,
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    zip: { type: String, required: true }
   },
 
   phone: {

@@ -53,11 +53,3 @@ export const UPI_SUPPORTED_APPS_API = '/upi-payments/supported-apps';
 export const UPI_PROCESS_PAYMENT_API = (orderId) => `/upi-payments/process/${orderId}`;
 export const UPI_PAYMENT_STATUS_API = (orderId) => `/upi-payments/status/${orderId}`;
 export const UPI_PAYMENT_HISTORY_API = (userId) => `/upi-payments/history/${userId}`;
-
-// User Features APIs
-export const ADD_SHIPPING_ADDRESS_API = '/user-features/addresses';
-export const GET_SHIPPING_ADDRESSES_API = (userId) => `/user-features/addresses/${userId}`;
-export const SET_DEFAULT_ADDRESS_API = (userId) => `/user-features/addresses/default/${userId}`;
-export const ADD_UPI_METHOD_API = '/user-features/upi-methods';
-export const GET_UPI_METHODS_API = (userId) => `/user-features/upi-methods/${userId}`;
-export const SET_DEFAULT_UPI_METHOD_API = (userId) => `/user-features/upi-methods/default/${userId}`; 

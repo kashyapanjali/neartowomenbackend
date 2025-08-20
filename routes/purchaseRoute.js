@@ -25,7 +25,7 @@ router.post('/cart/:userId', checkRole(['user']), async (req, res) => {
       cart.cartItems.map(async (item) => {
         const orderItem = new OrderItem({
           quantity: item.quantity,
-          products: item.product._id
+          product: item.product._id
         });
         return await orderItem.save();
       })
@@ -99,7 +99,7 @@ router.post('/direct/:userId', checkRole(['user']), async (req, res) => {
     // Create order item
     const orderItem = new OrderItem({
       quantity,
-      products: productId
+      product: productId
     });
     await orderItem.save();
 
@@ -155,7 +155,7 @@ router.get('/user/:userId', checkRole(['user']), async (req, res) => {
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'products',
+          path: 'product',
           populate: 'category'
         }
       })
@@ -175,7 +175,7 @@ router.get('/:orderId', checkRole(['user']), async (req, res) => {
       .populate({
         path: 'orderItems',
         populate: {
-          path: 'products',
+          path: 'product',
           populate: 'category'
         }
       });
