@@ -104,6 +104,39 @@ router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
   }
 });
 
+// Dummy payment verification for testing
+router.post('/gateway/verify-dummy', checkRole(['user']), async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (order.status === 'paid') {
+      return res.status(400).json({ message: 'Order is already paid' });
+    }
+
+    order.status = 'paid';
+    order.paymentDetails = {
+      transactionId: `DUMMY${Date.now()}`,
+      paymentStatus: 'completed',
+      paymentDate: new Date(),
+      amount: order.totalPrice,
+      currency: 'INR',
+      upiDetails: { app: 'gpay', upiId: 'test@upi' } 
+    };
+
+    await order.save();
+
+    res.status(200).json({
+      message: 'Dummy payment verified successfully',
+      order
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 // List supported UPI apps
 router.get('/supported-apps', (req, res) => {
