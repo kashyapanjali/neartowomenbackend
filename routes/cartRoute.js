@@ -17,7 +17,6 @@ const validateUserAccess = (req, res, next) => {
   if (req.params.userId && req.params.userId !== requestedUserId) {
     return res.status(403).json({ message: 'Access denied: You can only access your own cart' });
   }
-  
   next();
 };
 
@@ -103,10 +102,6 @@ router.put('/:userId', validateUserAccess, async (req, res) => {
     const userId = req.user.userId;
     const { productId, quantity } = req.body;
     
-    // Validate MongoDB ObjectId
-    // if (!mongoose.Types.ObjectId.isValid(userId)) {
-    //   return res.status(400).json({ message: 'Invalid user ID format' });
-    // }
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Invalid product ID format' });
     }
@@ -167,11 +162,6 @@ router.delete('/:userId', validateUserAccess, async (req, res) => {
     const userId = req.user.userId;
 
     const { productId } = req.body;
-    
-    // Validate MongoDB ObjectId
-    // if (!mongoose.Types.ObjectId.isValid(userId)) {
-    //   return res.status(400).json({ message: 'Invalid user ID format' });
-    // }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ message: 'Invalid product ID format' });

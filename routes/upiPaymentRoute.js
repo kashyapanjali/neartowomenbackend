@@ -4,11 +4,12 @@ const { Order } = require('../models/orderSchema');
 const checkRole = require('../helpers/checkRole');
 
 
+
 //for payment gateway methods
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
-// Initialize Razorpay only if environment variables are available
+// Initialize Razorpay 
 let razorpay;
 if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
   razorpay = new Razorpay({
@@ -18,25 +19,25 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
 }
 
 
-//create gateway order for an existing Order
 router.post('/gateway/create/:orderId', checkRole(['user']), async (req, res) => {
   try {
-    // Check if Razorpay is configured
-    if (!razorpay) {
-      return res.status(500).json({ message: 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.' });
+    // Initialize Razorpay here to ensure env vars are loaded
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ 
+        message: 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.' 
+      });
     }
 
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
     const order = await Order.findById(req.params.orderId).select('user totalPrice status');
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-    if (order.user.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-    if (order.status === 'paid') {
-      return res.status(400).json({ message: 'Order is already paid' });
-    }
-    
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (order.user.toString() !== req.user.userId) return res.status(403).json({ message: 'Access denied' });
+    if (order.status === 'paid') return res.status(400).json({ message: 'Order is already paid' });
+
     const amountPaise = Math.round(order.totalPrice * 100);
     const rzpOrder = await razorpay.orders.create({
       amount: amountPaise,
@@ -52,6 +53,7 @@ router.post('/gateway/create/:orderId', checkRole(['user']), async (req, res) =>
       amount: rzpOrder.amount,
       currency: rzpOrder.currency,
     });
+
   } catch (e) {
     res.status(500).json({ message: e.message });
   }

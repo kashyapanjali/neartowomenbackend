@@ -81,16 +81,17 @@ router.post('/cart/:userId', checkRole(['user']), validateUserAccess, async (req
 // Direct purchase (without cart)
 router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
   try {
-    const { productId, quantity, shippingAddress, city, zip, phone } = req.body;
+    const { productId, quantity, shippingAddress, phone } = req.body;
 
     // Validate required fields
-    if (!productId || !quantity || !shippingAddress || !city || !zip || !phone) {
+    if (!productId || !quantity || !shippingAddress || !shippingAddress.street || !shippingAddress.city || !shippingAddress.zip || !phone) {
       return res.status(400).json({
-        message: 'Missing required fields'});
+        message: 'Missing required fields: productId, quantity, shippingAddress {street, city, zip}, phone'
+      });
     }
+
     // Validate MongoDB ObjectId
     const product = await Product.findById(productId);
-
     if (!product) {
       return res.status(404).json({ 
         message: 'Product not found',
@@ -121,9 +122,11 @@ router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (r
     // Create order
     const order = new Order({
       orderItems: [orderItem._id],
-      shippingAddress,
-      city,
-      zip,
+      shippingAddress: {
+        street: shippingAddress.street,
+        city: shippingAddress.city,
+        zip: shippingAddress.zip
+      },
       phone,
       status: 'pending',
       totalPrice,
@@ -158,7 +161,6 @@ router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (r
     });
   }
 });
-
 
 // Get user's orders
 router.get('/user/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
