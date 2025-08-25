@@ -104,7 +104,7 @@ router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
   }
 });
 
-// Dummy payment verification for testing
+// Dummy payment verification for testing// this will remove after successful kyc
 router.post('/gateway/verify-dummy', checkRole(['user']), async (req, res) => {
   try {
     const { orderId } = req.body;

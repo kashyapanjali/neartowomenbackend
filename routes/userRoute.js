@@ -30,19 +30,6 @@ router.post('/register', async (req, res) => {
     });
 
     const savedUser = await user.save();
-    // if (!savedUser) {
-    //   return res.status(400).json({ message: 'User could not be created' });
-    // }
-
-    // Create empty user details
-    // const userDetails = new UserDetails({
-    //   user: savedUser._id
-    // });
-    // await userDetails.save();
-
-    // Update user with userDetails reference
-    // savedUser.userDetails = userDetails._id;
-    // await savedUser.save();
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -80,19 +67,6 @@ router.post('/register-admin', async (req, res) => {
     });
 
     const savedUser = await user.save();
-    // if (!savedUser) {
-    //   return res.status(400).json({ message: 'Admin could not be created' });
-    // }
-
-    // Create empty user details
-    // const userDetails = new UserDetails({
-    //   user: savedUser._id
-    // });
-    // await userDetails.save();
-
-    // Update user with userDetails reference
-    // savedUser.userDetails = userDetails._id;
-    // await savedUser.save();
 
     res.status(201).json({
       message: 'Admin registered successfully',
@@ -204,16 +178,6 @@ router.put('/', async (req, res) => {
       user.name = name;
     }
     await user.save();
-
-    // Update additional user details
-    // if (user.userDetails) {
-    //   if (phone) user.userDetails.phone = phone;
-    //   if (street) user.userDetails.address.street = street;
-    //   if (zip) user.userDetails.address.zip = zip;
-    //   if (city) user.userDetails.address.city = city;
-    //   await user.userDetails.save();
-    // }
-
     res.status(200).json({
       message: 'Profile updated successfully',
       user: {
@@ -275,11 +239,6 @@ router.delete('/admin/:id', checkRole(['admin']), async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    // Delete user details first
-    // if (user.userDetails) {
-    //   await UserDetails.findByIdAndDelete(user.userDetails);
-    // }
 
     // Then delete user
     await User.findByIdAndDelete(req.params.id);
