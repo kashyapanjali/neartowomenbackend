@@ -4,7 +4,6 @@ const { Order } = require('../models/orderSchema');
 const checkRole = require('../helpers/checkRole');
 
 
-
 //for payment gateway methods
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
@@ -34,16 +33,29 @@ router.post('/gateway/create/:orderId', checkRole(['user']), async (req, res) =>
     });
 
     const order = await Order.findById(req.params.orderId).select('user totalPrice status');
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (order.user.toString() !== req.user.userId) return res.status(403).json({ message: 'Access denied' });
-    if (order.status === 'paid') return res.status(400).json({ message: 'Order is already paid' });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    if (order.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    if (order.status === 'paid') {
+      return res.status(400).json({ message: 'Order is already paid' });
+    }
 
     const amountPaise = Math.round(order.totalPrice * 100);
+    
+    // Create Razorpay order
     const rzpOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: 'INR',
       receipt: String(order._id),
-      notes: { userId: String(order.user) },
+      notes: { 
+        userId: String(order.user),
+        orderId: String(order._id)
+      },
       payment_capture: 1
     });
 
@@ -52,23 +64,47 @@ router.post('/gateway/create/:orderId', checkRole(['user']), async (req, res) =>
       gatewayOrderId: rzpOrder.id,
       amount: rzpOrder.amount,
       currency: rzpOrder.currency,
+      orderId: order._id,
+      totalPrice: order.totalPrice
     });
 
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+  } catch (error) {
+    console.error('Razorpay order creation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create payment order',
+      error: error.message 
+    });
   }
 });
 
 
-//verify payment signature and mark paid
+// Verify Razorpay payment signature and mark order as paid
 router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
   try {
     // Check if Razorpay is configured
     if (!process.env.RAZORPAY_KEY_SECRET) {
-      return res.status(500).json({ message: 'Payment gateway not configured. Please set RAZORPAY_KEY_SECRET environment variable.' });
+      return res.status(500).json({ 
+        message: 'Payment gateway not configured. Please set RAZORPAY_KEY_SECRET environment variable.' 
+      });
     }
 
-    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { 
+      orderId, 
+      razorpay_order_id, 
+      razorpay_payment_id, 
+      razorpay_signature,
+      upiApp,
+      upiId 
+    } = req.body;
+
+    // Validate required fields
+    if (!orderId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ 
+        message: 'Missing required payment verification parameters' 
+      });
+    }
+
+    // Verify Razorpay signature
     const expected = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -78,7 +114,8 @@ router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
       return res.status(400).json({ message: 'Invalid payment signature' });
     }
 
-    const order = await Order.findById(orderId).select('user totalPrice status');
+    // Find and validate order
+    const order = await Order.findById(orderId).select('user totalPrice status paymentDetails');
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
@@ -87,6 +124,11 @@ router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
+    if (order.status === 'paid') {
+      return res.status(400).json({ message: 'Order is already paid' });
+    }
+
+    // Update order with payment details
     order.status = 'paid';
     order.paymentDetails = {
       transactionId: razorpay_payment_id,
@@ -94,48 +136,62 @@ router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
       paymentDate: new Date(),
       amount: order.totalPrice,
       currency: 'INR',
-      upiDetails: { app: undefined, upiId: undefined }
+      upiDetails: {
+        app: upiApp || null,
+        upiId: upiId || null
+      }
     };
 
     await order.save();
-    res.status(200).json({ message: 'Payment verified and order marked as paid' });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+
+    res.status(200).json({ 
+      message: 'Payment verified and order marked as paid',
+      orderId: order._id,
+      transactionId: razorpay_payment_id,
+      amount: order.totalPrice,
+      status: 'paid'
+    });
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({ 
+      message: 'Payment verification failed',
+      error: error.message 
+    });
   }
 });
 
 // Dummy payment verification for testing// this will remove after successful kyc
-router.post('/gateway/verify-dummy', checkRole(['user']), async (req, res) => {
-  try {
-    const { orderId } = req.body;
+// router.post('/gateway/verify-dummy', checkRole(['user']), async (req, res) => {
+//   try {
+//     const { orderId } = req.body;
 
-    const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+//     const order = await Order.findById(orderId);
+//     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    if (order.status === 'paid') {
-      return res.status(400).json({ message: 'Order is already paid' });
-    }
+//     if (order.status === 'paid') {
+//       return res.status(400).json({ message: 'Order is already paid' });
+//     }
 
-    order.status = 'paid';
-    order.paymentDetails = {
-      transactionId: `DUMMY${Date.now()}`,
-      paymentStatus: 'completed',
-      paymentDate: new Date(),
-      amount: order.totalPrice,
-      currency: 'INR',
-      upiDetails: { app: 'gpay', upiId: 'test@upi' } 
-    };
+//     order.status = 'paid';
+//     order.paymentDetails = {
+//       transactionId: `DUMMY${Date.now()}`,
+//       paymentStatus: 'completed',
+//       paymentDate: new Date(),
+//       amount: order.totalPrice,
+//       currency: 'INR',
+//       upiDetails: { app: 'gpay', upiId: 'test@upi' } 
+//     };
 
-    await order.save();
+//     await order.save();
 
-    res.status(200).json({
-      message: 'Dummy payment verified successfully',
-      order
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+//     res.status(200).json({
+//       message: 'Dummy payment verified successfully',
+//       order
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
 
 
 // List supported UPI apps
@@ -144,9 +200,94 @@ router.get('/supported-apps', (req, res) => {
     supportedApps: [
       { id: 'gpay', name: 'Google Pay' },
       { id: 'phonepe', name: 'PhonePe' },
-      { id: 'paytm', name: 'Paytm' }
+      { id: 'paytm', name: 'Paytm' },
+      { id: 'bhim', name: 'BHIM' },
+      { id: 'amazonpay', name: 'Amazon Pay' }
     ]
   });
+});
+
+// Create Razorpay order specifically for UPI payment
+router.post('/gateway/create-upi/:orderId', checkRole(['user']), async (req, res) => {
+  try {
+    const { upiApp, upiId } = req.body;
+    
+    // Validate UPI app
+    const validApps = ['gpay', 'phonepe', 'paytm', 'bhim', 'amazonpay'];
+    if (!validApps.includes(upiApp)) {
+      return res.status(400).json({ 
+        message: 'Invalid UPI app',
+        supportedApps: validApps
+      });
+    }
+
+    // Basic UPI ID validation
+    if (!upiId || !upiId.includes('@')) {
+      return res.status(400).json({ 
+        message: 'Invalid UPI ID format',
+        example: 'username@upi'
+      });
+    }
+
+    // Initialize Razorpay
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ 
+        message: 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.' 
+      });
+    }
+
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    const order = await Order.findById(req.params.orderId).select('user totalPrice status');
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    if (order.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    if (order.status === 'paid') {
+      return res.status(400).json({ message: 'Order is already paid' });
+    }
+
+    const amountPaise = Math.round(order.totalPrice * 100);
+    
+    // Create Razorpay order with UPI-specific configuration
+    const rzpOrder = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: String(order._id),
+      notes: { 
+        userId: String(order.user),
+        orderId: String(order._id),
+        upiApp: upiApp,
+        upiId: upiId
+      },
+      payment_capture: 1
+    });
+
+    res.status(200).json({
+      keyId: process.env.RAZORPAY_KEY_ID,
+      gatewayOrderId: rzpOrder.id,
+      amount: rzpOrder.amount,
+      currency: rzpOrder.currency,
+      orderId: order._id,
+      totalPrice: order.totalPrice,
+      upiApp: upiApp,
+      upiId: upiId
+    });
+
+  } catch (error) {
+    console.error('Razorpay UPI order creation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create UPI payment order',
+      error: error.message 
+    });
+  }
 });
 
 
@@ -301,6 +442,61 @@ router.get('/history/:userId', checkRole(['user']), async (req, res) => {
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Razorpay webhook endpoint for payment status updates
+router.post('/gateway/webhook', async (req, res) => {
+  try {
+    // Verify webhook signature //this show updation of product - shipped, delivered ...
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error('RAZORPAY_WEBHOOK_SECRET not configured');
+      return res.status(500).json({ message: 'Webhook secret not configured' });
+    }
+
+    const signature = req.headers['x-razorpay-signature'];
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      console.error('Invalid webhook signature');
+      return res.status(400).json({ message: 'Invalid signature' });
+    }
+
+    const { event, payload } = req.body;
+
+    if (event === 'payment.captured') {
+      const payment = payload.payment.entity;
+      const orderId = payment.notes?.orderId;
+      
+      if (orderId) {
+        const order = await Order.findById(orderId);
+        if (order && order.status !== 'paid') {
+          order.status = 'paid';
+          order.paymentDetails = {
+            transactionId: payment.id,
+            paymentStatus: 'completed',
+            paymentDate: new Date(payment.created_at * 1000),
+            amount: payment.amount / 100, // Convert from paise to rupees
+            currency: payment.currency,
+            upiDetails: {
+              app: payment.notes?.upiApp || null,
+              upiId: payment.notes?.upiId || null
+            }
+          };
+          await order.save();
+          console.log(`Order ${orderId} marked as paid via webhook`);
+        }
+      }
+    }
+
+    res.status(200).json({ message: 'Webhook processed successfully' });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).json({ message: 'Webhook processing failed' });
   }
 });
 
