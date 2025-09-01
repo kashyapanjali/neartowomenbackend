@@ -32,6 +32,15 @@ router.post('/cart/:userId', checkRole(['user']), validateUserAccess, async (req
       return res.status(404).json({ message: 'Cart not found' });
     }
 
+    // Validate stock availability
+    for (let item of cart.cartItems) {
+      if (item.product.countInStock < item.quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${item.product.name}. Available: ${item.product.countInStock}` 
+        });
+      }
+    }
+
     // Create order items
     const orderItems = await Promise.all(
       cart.cartItems.map(async (item) => {
@@ -61,6 +70,16 @@ router.post('/cart/:userId', checkRole(['user']), validateUserAccess, async (req
     });
 
     await order.save();
+
+    // Update product inventory
+    await Promise.all(
+      cart.cartItems.map(async (item) => {
+        await Product.findByIdAndUpdate(
+          item.product._id,
+          { $inc: { countInStock: -item.quantity } }
+        );
+      })
+    );
 
     // Clear cart
     cart.cartItems = [];
@@ -162,27 +181,54 @@ router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (r
   }
 });
 
-// Get user's orders
+// Get user's order history
 router.get('/user/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.params.userId })
+    const { page = 1, limit = 10, status } = req.query;
+    
+    // Build filter
+    const filter = { user: req.params.userId };
+    if (status) {
+      filter.status = status;
+    }
+    
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get orders with pagination
+    const orders = await Order.find(filter)
       .populate({
         path: 'orderItems',
         populate: {
           path: 'product',
-          populate: 'category'
+          select: 'name image price brand'
         }
       })
-      .sort({ dateOrder: -1 });
-
-    res.status(200).json(orders);
+      .sort({ dateOrder: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    // Get total count
+    const totalOrders = await Order.countDocuments(filter);
+    const totalPages = Math.ceil(totalOrders / parseInt(limit));
+    
+    res.status(200).json({
+      orders,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalOrders,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) {
+    console.error('Get order history error:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-
-// Get order details
+// Get order details by order ID (user can only see their own orders)
 router.get('/:orderId', checkRole(['user']), async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
@@ -190,24 +236,25 @@ router.get('/:orderId', checkRole(['user']), async (req, res) => {
         path: 'orderItems',
         populate: {
           path: 'product',
-          populate: 'category'
+          select: 'name image price brand description'
         }
-      });
-
+      })
+      .populate('user', 'name email');
+    
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
-
-    // Ensure the order belongs to the authenticated user
-    if (order.user.toString() !== req.user.userId) {
+    
+    // Check if user owns this order
+    if (order.user._id.toString() !== req.user.userId) {
       return res.status(403).json({ message: 'Access denied: You can only view your own orders' });
     }
-
+    
     res.status(200).json(order);
   } catch (error) {
+    console.error('Get order details error:', error);
     res.status(500).json({ message: error.message });
   }
 });
-
 
 module.exports = router;

@@ -5,6 +5,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
 const checkRole = require('../helpers/checkRole');
+const { productValidationSchemas, validateRequest } = require('../helpers/validate');
 
 
 //validate the uploaded file from the users-------->
@@ -27,8 +28,8 @@ const storage = multer.diskStorage({
     cb(uploadError, 'public/uploads');
   },
   filename: function (req, file, cb) {
-    const fileName = file.originalname.split(' ').join('-'); //fetch image by suffix and prefix name
-    const extension = FILE_TYPE_MAP[file.mimetype]; //this is define the image of extension so that image validate clearly
+    const fileName = file.originalname.split(' ').join('-'); 
+    const extension = FILE_TYPE_MAP[file.mimetype];
     cb(null, `${fileName}-${Date.now()}.${extension}`);
   },
 });
@@ -39,7 +40,7 @@ const uploadOptions = multer({ storage: storage });
 
 //model router
 //add the product
-router.post('/', checkRole(['admin']), async (req, res) => {
+router.post('/', checkRole(['admin']), validateRequest(productValidationSchemas.create), async (req, res) => {
   try {
     // Check if category exists
     const category = await Category.findById(req.body.category);
@@ -93,72 +94,146 @@ router.get('/', async (req, res) => {
 // Search products - This must come BEFORE the /:id route
 router.get('/search', async (req, res) => {
   try {
-    const { query, minPrice, maxPrice, category } = req.query;
+    const { 
+      query, 
+      minPrice, 
+      maxPrice, 
+      category, 
+      brand,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 12
+    } = req.query;
     
     // Build the search filter
     const filter = {};
-
-    // Text search if query exists
+    
+    // Text search
     if (query) {
-      try {
-        const searchRegex = new RegExp(query, 'i');
-        filter.$or = [
-          { name: searchRegex },
-          { description: searchRegex },
-          { brand: searchRegex }
-        ];
-      } catch (regexError) {
-        console.error('Regex error:', regexError);
-        return res.status(400).json({ message: 'Invalid search query format' });
-      }
+      filter.$or = [
+        { name: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } },
+        { brand: { $regex: query, $options: 'i' } }
+      ];
     }
-
+    
     // Price range filter
     if (minPrice || maxPrice) {
       filter.price = {};
-      if (minPrice) {
-        const minPriceNum = Number(minPrice);
-        if (isNaN(minPriceNum)) {
-          return res.status(400).json({ message: 'Invalid minimum price' });
-        }
-        filter.price.$gte = minPriceNum;
-      }
-      if (maxPrice) {
-        const maxPriceNum = Number(maxPrice);
-        if (isNaN(maxPriceNum)) {
-          return res.status(400).json({ message: 'Invalid maximum price' });
-        }
-        filter.price.$lte = maxPriceNum;
-      }
+      if (minPrice) filter.price.$gte = parseFloat(minPrice);
+      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
     }
-
+    
     // Category filter
     if (category) {
-      try {
-        filter.category = category;
-      } catch (error) {
-        console.error('Category filter error:', error);
-        return res.status(400).json({ message: 'Invalid category ID' });
+      filter.category = category;
+    }
+    
+    // Brand filter
+    if (brand) {
+      filter.brand = { $regex: brand, $options: 'i' };
+    }
+    
+    // Stock filter (only show in-stock products)
+    filter.countInStock = { $gt: 0 };
+    
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Execute query with pagination
+    const products = await Product.find(filter)
+      .populate('category')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    // Get total count for pagination
+    const totalProducts = await Product.countDocuments(filter);
+    const totalPages = Math.ceil(totalProducts / parseInt(limit));
+    
+    res.status(200).json({
+      products,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalProducts,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
       }
-    }
-
-    console.log('Search filter:', JSON.stringify(filter, null, 2));
-
-    const products = await Product.find(filter).populate('category');
-    console.log('Found products:', products.length);
-
-    if (!products || products.length === 0) {
-      return res.status(404).json({ message: 'No products found matching your search criteria' });
-    }
-
-    res.status(200).json(products);
-  } catch (error) {
-    console.error('Search error:', error);
-    res.status(500).json({ 
-      message: 'Error searching products', 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get featured products
+router.get('/featured/:count?', async (req, res) => {
+  try {
+    const count = parseInt(req.params.count) || 8;
+    const featuredProducts = await Product.find({ isFeatures: true })
+      .populate('category')
+      .limit(count);
+    
+    res.status(200).json(featuredProducts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get products by category with pagination
+router.get('/category/:categoryId', async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { page = 1, limit = 12, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    
+    // Validate category exists
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get products
+    const products = await Product.find({ 
+      category: categoryId, 
+      countInStock: { $gt: 0 } 
+    })
+      .populate('category')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    // Get total count
+    const totalProducts = await Product.countDocuments({ 
+      category: categoryId, 
+      countInStock: { $gt: 0 } 
+    });
+    const totalPages = Math.ceil(totalProducts / parseInt(limit));
+    
+    res.status(200).json({
+      category,
+      products,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalProducts,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
