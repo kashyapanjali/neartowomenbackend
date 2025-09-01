@@ -4,9 +4,10 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const checkRole = require('../helpers/checkRole');
+const { validationSchemas, validateRequest } = require('../helpers/validate');
 
 // Register new user
-router.post('/register', async (req, res) => {
+router.post('/register', validateRequest(validationSchemas.register), async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -48,7 +49,7 @@ router.post('/register', async (req, res) => {
 
 
 // Register admin user
-router.post('/register-admin', async (req, res) => {
+router.post('/register-admin', validateRequest(validationSchemas.register), async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -85,7 +86,7 @@ router.post('/register-admin', async (req, res) => {
 
 
 // Login for both user and admin
-router.post('/login', async (req, res) => {
+router.post('/login', validateRequest(validationSchemas.login), async (req, res) => {
   try {
     const { email, password } = req.body;
 
