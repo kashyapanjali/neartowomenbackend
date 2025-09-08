@@ -19,10 +19,6 @@ const upiPaymentRoute = require('./routes/upiPaymentRoute');
 
 dotenv.config();
 const app = express();
-
-//for testing
-console.log('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID);
-console.log('RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET);
 // CORS configuration
 app.use(cors());
 app.options('*', cors());

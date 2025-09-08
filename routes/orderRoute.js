@@ -103,7 +103,7 @@ router.delete('/:id', checkRole(['admin']), async (req, res) => {
 router.get('/get/totalsales', checkRole(['admin']), async (req, res) => {
   try {
     const totalSales = await Order.aggregate([
-      { $group: { _id: null, totalSales: { $sum: 'totalPrice' } } }
+      { $group: { _id: null, totalSales: { $sum: '$totalPrice' } } }
     ]);
 
     if (!totalSales.length) {

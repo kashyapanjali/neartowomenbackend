@@ -4,23 +4,23 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const checkRole = require('../helpers/checkRole');
+const { validateSignup, validateLogin } = require('../helpers/validate');
+
 
 // Register new user
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
-    // Validate required fields
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email and password are required' });
+    // Validate signup payload
+    const { error } = validateSignup({ name, email, password });
+    if (error) {
+      return res.status(400).json({ message: error.details?.[0]?.message || 'Invalid signup data' });
     }
-
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
-
     // Create user with core details
     const user = new User({
       name,
@@ -51,13 +51,16 @@ router.post('/register', async (req, res) => {
 router.post('/register-admin', async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
+    // Validate signup payload
+    const { error } = validateSignup({ name, email, password });
+    if (error) {
+      return res.status(400).json({ message: error.details?.[0]?.message || 'Invalid signup data' });
+    }
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
-
     // Create admin user with core details
     const user = new User({
       name,
@@ -88,21 +91,20 @@ router.post('/register-admin', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    // Validate login payload
+    const { error } = validateLogin({ email, password });
+    if (error) {
+      return res.status(400).json({ message: error.details?.[0]?.message || 'Invalid login data' });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'User not found' });
     }
-
     const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(400).json({ message: 'Invalid password' });
     }
-
     //jwt generate for the users and admin
     const token = jwt.sign(
       {
@@ -157,7 +159,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 // Update user profile
 router.put('/', async (req, res) => {

@@ -322,7 +322,7 @@ router.get('/get/Featured/:count', async (req, res) => {
 
 
 router.put(
-  'gallery-images/:id',
+  '/gallery-images/:id',
   uploadOptions.array('images', 10),
   async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
