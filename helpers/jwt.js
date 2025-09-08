@@ -17,6 +17,7 @@ function authJwt() {
       return null;
     }
   }).unless({
+    // without authencation that routes allows and option use for cors validation
     path: [
       { url: /\/api\/uploads(.*)/, methods: ['GET', 'OPTIONS'] },
       { url: /\/api\/products(.*)/, methods: ['GET', 'OPTIONS'] },

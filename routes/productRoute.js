@@ -5,7 +5,6 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
 const checkRole = require('../helpers/checkRole');
-const { productValidationSchemas, validateRequest } = require('../helpers/validate');
 
 
 //validate the uploaded file from the users-------->
@@ -40,7 +39,7 @@ const uploadOptions = multer({ storage: storage });
 
 //model router
 //add the product
-router.post('/', checkRole(['admin']), validateRequest(productValidationSchemas.create), async (req, res) => {
+router.post('/', checkRole(['admin']), async (req, res) => {
   try {
     // Check if category exists
     const category = await Category.findById(req.body.category);
