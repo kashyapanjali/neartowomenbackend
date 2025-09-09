@@ -128,7 +128,7 @@ router.get('/get/count', checkRole(['admin']), async (req, res) => {
 
 
 // Get user's orders
-router.get('/user/:userId', checkRole(['user']), async (req, res) => {
+router.get('/user/:userId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     const orders = await Order.find({ user: req.params.userId })
       .populate({

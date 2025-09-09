@@ -54,7 +54,7 @@ router.post('/', checkRole(['admin']), async (req, res) => {
       price: req.body.price,
       category: req.body.category,
       countInStock: req.body.countInStock,
-      isFeatures: req.body.isFeatures, // Ensure consistency with schema
+      isFeatures: req.body.isFeatures, 
     });
 
     // Save product

@@ -22,7 +22,7 @@ const validateUserAccess = (req, res, next) => {
 };
 
 // Purchase from cart
-router.post('/cart/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
+router.post('/cart/:userId', checkRole(['user', 'admin']), validateUserAccess, async (req, res) => {
   try {
     // Get cart
     const cart = await Cart.findOne({ user: req.params.userId })
@@ -98,7 +98,7 @@ router.post('/cart/:userId', checkRole(['user']), validateUserAccess, async (req
 
 
 // Direct purchase (without cart)
-router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
+router.post('/direct/:userId', checkRole(['user', 'admin']), validateUserAccess, async (req, res) => {
   try {
     const { productId, quantity, shippingAddress, phone } = req.body;
 
@@ -182,7 +182,7 @@ router.post('/direct/:userId', checkRole(['user']), validateUserAccess, async (r
 });
 
 // Get user's order history
-router.get('/user/:userId', checkRole(['user']), validateUserAccess, async (req, res) => {
+router.get('/user/:userId', checkRole(['user', 'admin']), validateUserAccess, async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
     
@@ -229,7 +229,7 @@ router.get('/user/:userId', checkRole(['user']), validateUserAccess, async (req,
 });
 
 // Get order details by order ID (user can only see their own orders)
-router.get('/:orderId', checkRole(['user']), async (req, res) => {
+router.get('/:orderId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
       .populate({

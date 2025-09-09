@@ -18,7 +18,7 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
 }
 
 
-router.post('/gateway/create/:orderId', checkRole(['user']), async (req, res) => {
+router.post('/gateway/create/:orderId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     // Initialize Razorpay here to ensure env vars are loaded
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -79,7 +79,7 @@ router.post('/gateway/create/:orderId', checkRole(['user']), async (req, res) =>
 
 
 // Verify Razorpay payment signature and mark order as paid
-router.post('/gateway/verify', checkRole(['user']), async (req, res) => {
+router.post('/gateway/verify', checkRole(['user', 'admin']), async (req, res) => {
   try {
     // Check if Razorpay is configured
     if (!process.env.RAZORPAY_KEY_SECRET) {
@@ -208,7 +208,7 @@ router.get('/supported-apps', (req, res) => {
 });
 
 // Create Razorpay order specifically for UPI payment
-router.post('/gateway/create-upi/:orderId', checkRole(['user']), async (req, res) => {
+router.post('/gateway/create-upi/:orderId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     const { upiApp, upiId } = req.body;
     
@@ -292,7 +292,7 @@ router.post('/gateway/create-upi/:orderId', checkRole(['user']), async (req, res
 
 
 // Process UPI payment for an order
-router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
+router.post('/process/:orderId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { upiId, upiApp } = req.body;
@@ -397,7 +397,7 @@ router.post('/process/:orderId', checkRole(['user']), async (req, res) => {
 
 
 // Get payment status for an order
-router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
+router.get('/status/:orderId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
       .select('status paymentDetails totalPrice dateOrder user');
@@ -425,7 +425,7 @@ router.get('/status/:orderId', checkRole(['user']), async (req, res) => {
 
 
 // Get payment history for a user
-router.get('/history/:userId', checkRole(['user']), async (req, res) => {
+router.get('/history/:userId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     // Ensure the requested userId matches the authenticated user
     if (req.params.userId !== req.user.userId) {
