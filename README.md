@@ -31,7 +31,7 @@ A simple Node.js/Express backend for the NearToWomen project. This service provi
 
 ### Project structure (high-level)
 - `index.js` / `api.js`: App entry and server setup
-- `routes/`: Express routes (users, products, categories, orders, cart, payments)
+- `routes/`: Express routes (users, products, categories, orders, cart, payments gateway)
 - `models/`: Mongoose schemas and models
 - `helpers/`: Utilities (JWT, validation, role checks, rate limiting, error handling)
 - `config/`: Database configuration and docs
