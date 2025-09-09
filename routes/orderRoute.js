@@ -127,7 +127,7 @@ router.get('/get/count', checkRole(['admin']), async (req, res) => {
 });
 
 
-// Get user's orders
+// Get user's orders  //for id like profile
 router.get('/user/:userId', checkRole(['user', 'admin']), async (req, res) => {
   try {
     const orders = await Order.find({ user: req.params.userId })
