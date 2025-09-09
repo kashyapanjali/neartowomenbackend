@@ -1,6 +1,6 @@
 // API endpoint exports for frontend use
 // Base URL (change if needed)
-export const BASE_URL = 'http://localhost:3000/api';
+export const BASE_URL = 'http://localhost:5000/api';
 
 // User Authentication & Profile
 export const REGISTER_USER_API = '/users/register';
