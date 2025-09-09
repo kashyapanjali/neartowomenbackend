@@ -46,4 +46,4 @@ A simple Node.js/Express backend for the NearToWomen project. This service provi
 - Keep `JWT_SECRET` private and strong.
 
 ### License
-This code is intended for the NearToWomen project. Adjust or add a license as needed.
+This code is intended for the NearToWomen project. In future, we can add license as needed.
