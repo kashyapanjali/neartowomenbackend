@@ -58,7 +58,7 @@ app.get(`${url}/test`, (req, res) => {
 // Error handler middleware - Apply AFTER routes
 app.use(errorHandler);
 
-const PORT = 5000;
+const PORT = 5001;
 app.listen(PORT, () => {
   console.log(`App is running on http://localhost:${PORT}`);
   console.log(`API URL: ${url}`);
